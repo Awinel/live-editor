@@ -1,2 +1,123 @@
 @import 'tailwindcss';
 @import 'tailwind-animations';
+
+@theme {
+  --color-page: #e7f0f2;
+  --color-paper: #f7fbfc;
+  --color-violet: #5f0f40;
+  --color-crimson: #9a031e;
+  --color-orange: #fb8b24;
+  --color-leaf: #e36414;
+  --color-teal: #0f4c5c;
+  --color-muted: #3d6a76;
+  --color-rule: rgb(15 76 92 / 0.18);
+}
+
+@theme inline {
+  --font-sans: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-page);
+    color: var(--color-teal);
+  }
+
+  body {
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-orange);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: rgb(251 139 36 / 0.35);
+    color: var(--color-violet);
+  }
+}
+
+@layer components {
+  .bench {
+    background-color: var(--color-paper);
+    background-image: radial-gradient(rgb(15 76 92 / 0.2) 1px, transparent 1px);
+    background-size: 18px 18px;
+    background-position: 9px 9px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding-inline: 20px;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
+
+  .btn:disabled {
+    cursor: progress;
+    opacity: 0.7;
+  }
+
+  .btn-primary {
+    background-color: var(--color-crimson);
+    border-color: var(--color-crimson);
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-violet);
+    border-color: var(--color-violet);
+  }
+
+  .btn-secondary {
+    background-color: transparent;
+    border-color: var(--color-teal);
+    color: var(--color-teal);
+  }
+
+  .btn-secondary:hover {
+    background-color: rgb(15 76 92 / 0.08);
+  }
+
+  .link {
+    color: var(--color-crimson);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  .link:hover {
+    color: var(--color-violet);
+  }
+
+  .field-input {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid rgb(15 76 92 / 0.35);
+    border-radius: 6px;
+    background-color: var(--color-paper);
+    color: var(--color-teal);
+  }
+
+  .field-input:focus-visible {
+    border-color: var(--color-teal);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}

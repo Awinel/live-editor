@@ -9,9 +9,9 @@ import sharp from 'sharp'
 // Collections
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
+import { Components } from './collections/Components'
 
 // Plugins
-import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import { SiteSettings } from './globals/SiteSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -25,7 +25,7 @@ export default buildConfig({
     },
   },
   globals: [SiteSettings],
-  collections: [Users, Media],
+  collections: [Users, Media, Components],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
@@ -37,15 +37,21 @@ export default buildConfig({
     },
   }),
   sharp,
-  plugins: [
-    vercelBlobStorage({
-      enabled: true, // Optional, defaults to true
-      // Specify which collections should use Vercel Blob
-      collections: {
-        media: true,
-      },
-      // Token provided by Vercel once Blob storage is added to your Vercel project
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    }),
-  ],
+  plugins: [],
+  // Accounts created before roles existed would otherwise lose admin access, so promote them once.
+  onInit: async (payload) => {
+    const { totalDocs: adminCount } = await payload.count({
+      collection: 'users',
+      where: { roles: { in: ['admin'] } },
+    })
+    if (adminCount > 0) return
+
+    const { docs } = await payload.find({ collection: 'users', depth: 0, pagination: false })
+    for (const user of docs) {
+      await payload.update({ collection: 'users', id: user.id, data: { roles: ['admin'] } })
+    }
+    if (docs.length > 0) {
+      payload.logger.info(`Promoted ${docs.length} existing user(s) to admin.`)
+    }
+  },
 })

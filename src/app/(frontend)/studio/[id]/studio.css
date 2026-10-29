@@ -1,0 +1,26 @@
+/* Puck's accent scale, remapped from azure to the site's Dark Teal. */
+:root {
+  --puck-color-azure-01: #04232b;
+  --puck-color-azure-02: #082f39;
+  --puck-color-azure-03: #0b3c48;
+  --puck-color-azure-04: #0f4c5c;
+  --puck-color-azure-05: #3d6a76;
+  --puck-color-azure-06: #5f8792;
+  --puck-color-azure-07: #86a6ae;
+  --puck-color-azure-08: #abc4ca;
+  --puck-color-azure-09: #cfe0e4;
+  --puck-color-azure-10: #e2eef1;
+  --puck-color-azure-11: #eef5f7;
+  --puck-color-azure-12: #f6fafb;
+}
+
+.lc-studio [class*='_Button--primary'] {
+  background-color: #9a031e;
+  border-color: #9a031e;
+  color: #fff;
+}
+
+.lc-studio [class*='_Button--primary']:hover {
+  background-color: #5f0f40;
+  border-color: #5f0f40;
+}

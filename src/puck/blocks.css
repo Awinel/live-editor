@@ -1,0 +1,181 @@
+.lc-root {
+  --lc-violet: #5f0f40;
+  --lc-crimson: #9a031e;
+  --lc-orange: #fb8b24;
+  --lc-leaf: #e36414;
+  --lc-teal: #0f4c5c;
+  --lc-muted: #3d6a76;
+  --lc-paper: #f7fbfc;
+  --lc-rule: rgba(15, 76, 92, 0.18);
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--lc-teal);
+  text-align: left;
+}
+
+/* In the editor, blocks sit inside Puck's root drop zone rather than directly in .lc-root. */
+.lc-root > div:only-child {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lc-root *,
+.lc-root *::before,
+.lc-root *::after {
+  box-sizing: border-box;
+}
+
+.lc-root--editing {
+  min-height: 100%;
+  padding: 32px;
+  background: var(--lc-paper);
+}
+
+.lc-root .lc-heading {
+  margin: 0;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--lc-violet);
+}
+
+.lc-root .lc-heading--h2 {
+  font-size: clamp(1.75rem, 1.25rem + 1.6vw, 2.5rem);
+}
+
+.lc-root .lc-heading--h3 {
+  font-size: 1.375rem;
+  line-height: 1.2;
+}
+
+.lc-root .lc-text {
+  margin: 0;
+  max-width: 65ch;
+  font-size: 1.0625rem;
+  white-space: pre-line;
+  color: var(--lc-teal);
+}
+
+.lc-root .lc-text--muted {
+  color: var(--lc-muted);
+}
+
+.lc-root .lc-align--center {
+  text-align: center;
+  margin-inline: auto;
+}
+
+.lc-root .lc-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.lc-root .lc-image--empty {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  border: 2px dashed var(--lc-rule);
+  color: var(--lc-muted);
+  font-size: 0.9375rem;
+}
+
+.lc-root .lc-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 2px solid var(--lc-crimson);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.lc-root .lc-button--solid {
+  background: var(--lc-crimson);
+  color: #fff;
+}
+
+.lc-root .lc-button--solid:hover {
+  background: var(--lc-violet);
+  border-color: var(--lc-violet);
+}
+
+.lc-root .lc-button--outline {
+  background: transparent;
+  color: var(--lc-crimson);
+}
+
+.lc-root .lc-button--outline:hover {
+  background: rgba(154, 3, 30, 0.08);
+}
+
+.lc-root .lc-button:focus-visible {
+  outline: 3px solid var(--lc-orange);
+  outline-offset: 2px;
+}
+
+.lc-root .lc-stack {
+  display: flex;
+}
+
+.lc-root .lc-stack--vertical {
+  flex-direction: column;
+}
+
+.lc-root .lc-stack--horizontal {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.lc-root .lc-gap--sm {
+  gap: 8px;
+}
+
+.lc-root .lc-gap--md {
+  gap: 16px;
+}
+
+.lc-root .lc-gap--lg {
+  gap: 32px;
+}
+
+.lc-root .lc-items--start {
+  align-items: flex-start;
+}
+
+.lc-root .lc-items--center {
+  align-items: center;
+}
+
+.lc-root .lc-items--stretch {
+  align-items: stretch;
+}
+
+.lc-root .lc-markup {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lc-root .lc-button {
+    transition: none;
+  }
+}

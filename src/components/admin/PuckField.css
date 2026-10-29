@@ -1,0 +1,8 @@
+.lc-admin-field__editor {
+  height: min(780px, calc(100dvh - 140px));
+  min-height: 520px;
+  margin-top: 8px;
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 6px;
+  overflow: hidden;
+}
