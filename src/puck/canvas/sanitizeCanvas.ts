@@ -1,3 +1,4 @@
+import { sanitizeAnimation } from '../animation/sanitizeAnimation'
 import { clampNumber, sanitizeStyle } from '../style/sanitizeStyle'
 import { isSafeColor } from '../style/styleTypes'
 import {
@@ -62,6 +63,7 @@ function sanitizeElement(
     rotation: clampNumber(value.rotation, [-180, 180]) ?? 0,
     content: sanitizeContent(kind, value.content),
     style: sanitizeStyle(value.style),
+    animation: sanitizeAnimation(value.animation),
   }
 }
 

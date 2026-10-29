@@ -4,6 +4,7 @@ import { FieldLabel, createUsePuck } from '@puckeditor/core'
 
 import '../style/fields.css'
 
+import { AnimationEditor } from '../animation/AnimationField'
 import { ColorInput } from '../style/ColorField'
 import { StyleEditor, type StyleGroup } from '../style/StyleField'
 import type { BlockStyle } from '../style/styleTypes'
@@ -411,6 +412,12 @@ export function ElementsField({ value, onChange, readOnly }: FieldProps<FreeElem
               groups={STYLE_GROUPS[selected.kind]}
               omit={['marginTop', 'marginBottom']}
               onChange={(style: BlockStyle | undefined) => patch(selected.id, { style })}
+            />
+            <h4 className="lc-cf__inspector-title">Animation</h4>
+            <AnimationEditor
+              subject={KIND_LABELS[selected.kind]}
+              value={selected.animation}
+              onChange={(animation) => patch(selected.id, { animation })}
             />
           </section>
         ) : (

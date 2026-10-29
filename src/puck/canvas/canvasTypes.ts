@@ -1,3 +1,4 @@
+import type { BlockAnimation } from '../animation/animationTypes'
 import type { BlockStyle } from '../style/styleTypes'
 
 export const ELEMENT_KINDS = ['heading', 'text', 'button', 'image', 'shape'] as const
@@ -23,6 +24,7 @@ export type FreeElement = {
   rotation: number
   content: ElementContent
   style?: BlockStyle
+  animation?: BlockAnimation
 }
 
 export type Artboard = { width: number; height: number }

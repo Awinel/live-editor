@@ -7,6 +7,7 @@ import {
   type BlockType,
   type PuckDocument,
 } from './blockTypes'
+import { sanitizeAnimation } from './animation/sanitizeAnimation'
 import { sanitizeCanvasProps } from './canvas/sanitizeCanvas'
 import { sanitizeStyle } from './style/sanitizeStyle'
 
@@ -68,6 +69,10 @@ function sanitizeItem(item: unknown): Record<string, unknown> | null {
   const style = sanitizeStyle(props.style)
   if (style) props.style = style
   else delete props.style
+
+  const animation = sanitizeAnimation(props.animation)
+  if (animation) props.animation = animation
+  else delete props.animation
 
   return { type: item.type, props }
 }

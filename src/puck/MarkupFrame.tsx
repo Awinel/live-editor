@@ -17,14 +17,15 @@ type MarkupFrameProps = {
   css: string
   height: number
   style?: CSSProperties
+  className?: string
   isEditing?: boolean
 }
 
 // Scripts stay off because the sandbox omits allow-scripts; the CSP blocks network fetches too.
-export function MarkupFrame({ html, css, height, style, isEditing }: MarkupFrameProps) {
+export function MarkupFrame({ html, css, height, style, className, isEditing }: MarkupFrameProps) {
   return (
     <iframe
-      className="lc-markup"
+      className={className ? `lc-markup ${className}` : 'lc-markup'}
       sandbox=""
       referrerPolicy="no-referrer"
       title="Custom markup"

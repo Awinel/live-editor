@@ -6,7 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { containerUnit } from '../style/toStyle'
 import { CANVAS_LIMITS, type FreeElement } from './canvasTypes'
 import { selectElement, useSelectedElement } from './canvasStore'
-import { ElementBody, boardStyle, boxStyle, type CanvasFrameProps } from './FreeCanvasView'
+import { ElementBody, boardProps, boxStyle, type CanvasFrameProps } from './FreeCanvasView'
 import { resizeBox, rotationFromPointer, snapMove, type Guides } from './geometry'
 import { duplicateElement, removeElement, shiftLayer, updateElement } from './operations'
 
@@ -324,8 +324,7 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
       tabIndex={0}
       role="application"
       aria-label="Free canvas. Click an element to select it, drag to move, arrow keys to nudge, Enter to edit text."
-      className="lc-canvas lc-canvas--editing"
-      style={boardStyle(props)}
+      {...boardProps(props, 'lc-canvas lc-canvas--editing')}
     >
       {grid.show && (
         <div

@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 
+import { animationProps, withClass } from '../animation/animationCss'
+import type { BlockAnimation } from '../animation/animationTypes'
 import type { BlockStyle } from '../style/styleTypes'
 import { containerUnit, toStyle, type LengthUnit } from '../style/toStyle'
 import { safeHref, safeSrc } from '../urls'
@@ -17,7 +19,7 @@ export function boxStyle(element: FreeElement, artboard: Artboard): CSSPropertie
   }
 }
 
-export type CanvasFrameProps = FreeCanvasProps & { frame?: BlockStyle }
+export type CanvasFrameProps = FreeCanvasProps & { frame?: BlockStyle; animation?: BlockAnimation }
 
 export function boardStyle(props: CanvasFrameProps): CSSProperties {
   const { width, height } = props.artboard
@@ -30,6 +32,12 @@ export function boardStyle(props: CanvasFrameProps): CSSProperties {
   }
 }
 
+/** Class and style for the board itself, including the whole-canvas animation. */
+export function boardProps(props: CanvasFrameProps, baseClass: string) {
+  const animation = animationProps(props.animation)
+  return { className: withClass(baseClass, animation.className), style: { ...boardStyle(props), ...animation.style } }
+}
+
 type BodyProps = {
   element: FreeElement
   unit: LengthUnit
@@ -37,9 +45,14 @@ type BodyProps = {
   textSlot?: ReactNode
 }
 
-/** The element itself, filling the positioned box drawn around it. */
+/**
+ * The element itself, filling the positioned box drawn around it. Animations run here rather than on the box,
+ * so their transforms never replace the box's rotation.
+ */
 export function ElementBody({ element, unit, isEditing, textSlot }: BodyProps) {
-  const style = toStyle(element.style, unit)
+  const animation = animationProps(element.animation)
+  const style = { ...toStyle(element.style, unit), ...animation.style }
+  const body = (name: string) => withClass(`lc-el-body ${name}`.trim(), animation.className)
   const { content } = element
   const text = textSlot ?? content.text
 
@@ -47,21 +60,21 @@ export function ElementBody({ element, unit, isEditing, textSlot }: BodyProps) {
     case 'heading': {
       const Tag = content.level === 'h3' ? 'h3' : 'h2'
       return (
-        <Tag className="lc-el-body lc-el-heading" style={style}>
+        <Tag className={body('lc-el-heading')} style={style}>
           {text}
         </Tag>
       )
     }
     case 'text':
       return (
-        <p className="lc-el-body lc-el-text" style={style}>
+        <p className={body('lc-el-text')} style={style}>
           {text}
         </p>
       )
     case 'button':
       return (
         <a
-          className="lc-el-body lc-el-button"
+          className={body('lc-el-button')}
           href={safeHref(content.href ?? '#')}
           tabIndex={isEditing ? -1 : undefined}
           style={style}
@@ -73,7 +86,7 @@ export function ElementBody({ element, unit, isEditing, textSlot }: BodyProps) {
       const src = safeSrc(content.src ?? '')
       if (!src) {
         return (
-          <div className="lc-el-body lc-el-image lc-el-image--empty" style={style}>
+          <div className={body('lc-el-image lc-el-image--empty')} style={style}>
             Image
           </div>
         )
@@ -81,7 +94,7 @@ export function ElementBody({ element, unit, isEditing, textSlot }: BodyProps) {
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          className="lc-el-body lc-el-image"
+          className={body('lc-el-image')}
           src={src}
           alt={content.alt ?? ''}
           draggable={false}
@@ -92,7 +105,7 @@ export function ElementBody({ element, unit, isEditing, textSlot }: BodyProps) {
     case 'shape':
       return (
         <div
-          className="lc-el-body lc-el-shape"
+          className={body('lc-el-shape')}
           aria-hidden="true"
           style={{ ...style, borderRadius: content.shape === 'ellipse' ? '50%' : style.borderRadius }}
         />
@@ -103,7 +116,7 @@ export function ElementBody({ element, unit, isEditing, textSlot }: BodyProps) {
 export function FreeCanvasView(props: CanvasFrameProps) {
   const unit = containerUnit(props.artboard.width)
   return (
-    <div className="lc-canvas" style={boardStyle(props)}>
+    <div {...boardProps(props, 'lc-canvas')}>
       {props.elements.map((element) => (
         <div key={element.id} className="lc-el" style={boxStyle(element, props.artboard)}>
           <ElementBody element={element} unit={unit} />

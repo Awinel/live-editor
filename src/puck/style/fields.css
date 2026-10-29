@@ -316,6 +316,32 @@
   color: var(--lc-sf-muted);
 }
 
+/* Animation field */
+.lc-af__repeat {
+  align-items: end;
+}
+
+.lc-af__repeat .lc-sf__check {
+  min-height: 32px;
+}
+
+.lc-af__preview {
+  display: flex;
+  gap: 6px;
+}
+
+.lc-af__play {
+  flex: 1;
+  border-color: var(--lc-sf-accent);
+  color: var(--lc-sf-accent);
+  font-weight: 600;
+}
+
+.lc-cf__inspector h4.lc-cf__inspector-title {
+  padding-top: 10px;
+  border-top: 1px solid var(--lc-sf-line);
+}
+
 .lc-cf textarea.lc-sf__input {
   height: auto;
   min-height: 72px;

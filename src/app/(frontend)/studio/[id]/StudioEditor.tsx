@@ -4,6 +4,8 @@ import { Button, Puck, useGetPuck } from '@puckeditor/core'
 import Link from 'next/link'
 import { useMemo, useState, useTransition } from 'react'
 
+import { ExportDialog } from '@/components/site/ExportDialog'
+import { exportDraft } from '@/lib/exportActions'
 import { studioConfig, type ComponentData } from '@/puck/config'
 
 import { saveComponent, type SaveIntent, type SaveResult } from '../actions'
@@ -36,6 +38,15 @@ function StudioActions({ id, isAdmin }: Omit<StudioEditorProps, 'initialData'>) 
       <Link href="/studio" className="text-sm font-semibold text-teal hover:text-violet">
         Back to studio
       </Link>
+      <ExportDialog
+        load={(format) => exportDraft(getPuck().appState.data, format)}
+        sourceNote="Exports what is on the canvas now, including changes you have not saved."
+        renderTrigger={(open) => (
+          <Button type="button" variant="secondary" onClick={open}>
+            Export
+          </Button>
+        )}
+      />
       <Button type="button" variant="secondary" onClick={() => run('save')} disabled={pending}>
         Save draft
       </Button>
