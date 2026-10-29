@@ -174,6 +174,175 @@
   background: transparent;
 }
 
+/* Free canvas: positions are percentages and lengths are cqw, so the artboard scales as one piece. */
+.lc-root .lc-canvas {
+  position: relative;
+  width: 100%;
+  margin-inline: auto;
+  container-type: inline-size;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.lc-root .lc-el {
+  position: absolute;
+  transform-origin: center;
+}
+
+.lc-root .lc-el-body {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  color: inherit;
+}
+
+.lc-root .lc-el-heading {
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--lc-violet);
+}
+
+.lc-root .lc-el-text {
+  white-space: pre-line;
+}
+
+.lc-root .lc-el-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 600;
+  background: var(--lc-crimson);
+  color: #fff;
+}
+
+.lc-root .lc-el-button:focus-visible {
+  outline: 3px solid var(--lc-orange);
+  outline-offset: 2px;
+}
+
+.lc-root .lc-el-image {
+  object-fit: cover;
+}
+
+.lc-root .lc-el-image--empty {
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--lc-rule);
+  color: var(--lc-muted);
+  font-size: 0.875em;
+}
+
+/* Editing chrome. Puck disables pointer events inside blocks, so the canvas opts back in. */
+.lc-root .lc-canvas--editing,
+.lc-root .lc-canvas--editing * {
+  pointer-events: auto !important;
+}
+
+.lc-root .lc-canvas--editing {
+  overflow: visible;
+  cursor: default;
+  outline: 1px solid var(--lc-rule);
+}
+
+.lc-root .lc-canvas--editing:focus-visible {
+  outline: 2px solid var(--lc-orange);
+  outline-offset: 2px;
+}
+
+.lc-root .lc-canvas--editing .lc-el {
+  cursor: move;
+  touch-action: none;
+}
+
+.lc-root .lc-canvas--editing .lc-el:hover:not(.lc-el--selected) {
+  outline: 1px dashed var(--lc-muted);
+}
+
+.lc-root .lc-canvas--editing .lc-el--selected {
+  outline: 2px solid var(--lc-orange);
+  z-index: 1;
+}
+
+.lc-root .lc-canvas--editing .lc-el-body * {
+  pointer-events: none !important;
+}
+
+.lc-root .lc-canvas--editing .lc-el-inline,
+.lc-root .lc-canvas--editing .lc-el-inline * {
+  pointer-events: auto !important;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  outline: none;
+}
+
+.lc-root .lc-canvas--editing .lc-canvas__grid,
+.lc-root .lc-canvas--editing .lc-canvas__guide {
+  pointer-events: none !important;
+}
+
+.lc-root .lc-canvas__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(15, 76, 92, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 76, 92, 0.1) 1px, transparent 1px);
+}
+
+.lc-root .lc-canvas__guide {
+  position: absolute;
+  z-index: 2;
+  background: var(--lc-crimson);
+}
+
+.lc-root .lc-canvas__guide--x {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.lc-root .lc-canvas__guide--y {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.lc-root .lc-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border: 2px solid var(--lc-orange);
+  border-radius: 2px;
+  background: #fff;
+}
+
+.lc-root .lc-handle--rotate {
+  left: 50%;
+  top: -28px;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  cursor: grab;
+}
+
+.lc-root .lc-handle--rotate::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  background: var(--lc-orange);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lc-root .lc-button {
     transition: none;

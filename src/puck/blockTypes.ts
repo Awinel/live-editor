@@ -1,4 +1,12 @@
-export const BLOCK_TYPES = ['Heading', 'Text', 'Image', 'Button', 'Stack', 'Markup'] as const
+export const BLOCK_TYPES = [
+  'Heading',
+  'Text',
+  'Image',
+  'Button',
+  'Stack',
+  'Markup',
+  'FreeCanvas',
+] as const
 
 export type BlockType = (typeof BLOCK_TYPES)[number]
 

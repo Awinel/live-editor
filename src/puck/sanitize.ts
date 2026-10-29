@@ -7,6 +7,8 @@ import {
   type BlockType,
   type PuckDocument,
 } from './blockTypes'
+import { sanitizeCanvasProps } from './canvas/sanitizeCanvas'
+import { sanitizeStyle } from './style/sanitizeStyle'
 
 const MAX_MARKUP_LENGTH = 20_000
 
@@ -58,6 +60,14 @@ function sanitizeItem(item: unknown): Record<string, unknown> | null {
     props.css = sanitizeMarkupCss(String(props.css ?? ''))
     props.height = clampMarkupHeight(props.height)
   }
+
+  if (item.type === 'FreeCanvas') {
+    Object.assign(props, sanitizeCanvasProps(props))
+  }
+
+  const style = sanitizeStyle(props.style)
+  if (style) props.style = style
+  else delete props.style
 
   return { type: item.type, props }
 }

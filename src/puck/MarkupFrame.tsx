@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 import { clampMarkupHeight } from './blockTypes'
 
 const CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src https: data:"
@@ -14,11 +16,12 @@ type MarkupFrameProps = {
   html: string
   css: string
   height: number
+  style?: CSSProperties
   isEditing?: boolean
 }
 
 // Scripts stay off because the sandbox omits allow-scripts; the CSP blocks network fetches too.
-export function MarkupFrame({ html, css, height, isEditing }: MarkupFrameProps) {
+export function MarkupFrame({ html, css, height, style, isEditing }: MarkupFrameProps) {
   return (
     <iframe
       className="lc-markup"
@@ -26,7 +29,7 @@ export function MarkupFrame({ html, css, height, isEditing }: MarkupFrameProps) 
       referrerPolicy="no-referrer"
       title="Custom markup"
       srcDoc={buildDocument(html, css)}
-      style={{ height: clampMarkupHeight(height), pointerEvents: isEditing ? 'none' : undefined }}
+      style={{ ...style, height: clampMarkupHeight(height), pointerEvents: isEditing ? 'none' : undefined }}
     />
   )
 }

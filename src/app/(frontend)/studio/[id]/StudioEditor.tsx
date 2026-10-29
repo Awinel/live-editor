@@ -2,7 +2,7 @@
 
 import { Button, Puck, useGetPuck } from '@puckeditor/core'
 import Link from 'next/link'
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 
 import { studioConfig, type ComponentData } from '@/puck/config'
 
@@ -52,15 +52,15 @@ function StudioActions({ id, isAdmin }: Omit<StudioEditorProps, 'initialData'>) 
 }
 
 export function StudioEditor({ id, initialData, isAdmin }: StudioEditorProps) {
+  // A stable override keeps the save status message when the page revalidates after saving.
+  const overrides = useMemo(
+    () => ({ headerActions: () => <StudioActions id={id} isAdmin={isAdmin} /> }),
+    [id, isAdmin],
+  )
+
   return (
     <div className="lc-studio">
-      <Puck
-        config={studioConfig}
-        data={initialData}
-        overrides={{
-          headerActions: () => <StudioActions id={id} isAdmin={isAdmin} />,
-        }}
-      />
+      <Puck config={studioConfig} data={initialData} overrides={overrides} />
     </div>
   )
 }
