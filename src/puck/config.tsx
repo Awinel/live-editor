@@ -5,8 +5,8 @@ import { EDITOR_ANIMATION_CSS, SITE_ANIMATION_CSS, animationProps, withClass } f
 import { AnimationField } from './animation/AnimationField'
 import type { BlockAnimation } from './animation/animationTypes'
 import { MARKUP_HEIGHT } from './blockTypes'
-import { ArtboardField, BackgroundField, ElementsField, GridField } from './canvas/CanvasFields'
-import { defaultCanvasProps, type FreeCanvasProps } from './canvas/canvasTypes'
+import { ArtboardField, BackgroundField, ElementsField, GridField, ViewportField } from './canvas/CanvasFields'
+import { defaultCanvasProps, type FreeCanvasProps, type InputType } from './canvas/canvasTypes'
 import { FreeCanvasEditor } from './canvas/FreeCanvasEditor'
 import { FreeCanvasView } from './canvas/FreeCanvasView'
 import { sanitizeCanvasProps } from './canvas/sanitizeCanvas'
@@ -15,7 +15,7 @@ import { MarkupFrame } from './MarkupFrame'
 import { StyleField, type StyleEditorProps } from './style/StyleField'
 import type { BlockStyle } from './style/styleTypes'
 import { toStyle } from './style/toStyle'
-import { safeHref, safeSrc } from './urls'
+import { safeFieldName, safeHref, safeSrc } from './urls'
 
 type Align = 'left' | 'center'
 type Styled<Props> = Props & { style?: BlockStyle; animation?: BlockAnimation }
@@ -25,6 +25,7 @@ export type BlockProps = {
   Text: Styled<{ text: string; tone: 'body' | 'muted'; align: Align }>
   Image: Styled<{ src: string; alt: string; ratio: 'auto' | '16/9' | '4/3' | '1/1' }>
   Button: Styled<{ label: string; href: string; variant: 'solid' | 'outline' }>
+  Input: Styled<{ label: string; placeholder: string; value: string; name: string; type: InputType }>
   Stack: Styled<{
     direction: 'vertical' | 'horizontal'
     gap: 'sm' | 'md' | 'lg'
@@ -80,7 +81,7 @@ const custom = <Value,>(render: CustomField<Value>['render']): CustomField<Value
 
 export const config: ComponentConfig = {
   categories: {
-    content: { title: 'Content', components: ['Heading', 'Text', 'Image', 'Button'] },
+    content: { title: 'Content', components: ['Heading', 'Text', 'Image', 'Button', 'Input'] },
     layout: { title: 'Layout', components: ['Stack'] },
     freeform: { title: 'Freeform', components: ['FreeCanvas'] },
     custom: { title: 'Custom', components: ['Markup'] },
@@ -197,6 +198,55 @@ export const config: ComponentConfig = {
         </a>
       ),
     },
+    Input: {
+      fields: {
+        label: { type: 'text', label: 'Label', contentEditable: true },
+        placeholder: { type: 'text', label: 'Placeholder' },
+        value: { type: 'text', label: 'Value' },
+        name: { type: 'text', label: 'Name' },
+        type: {
+          type: 'select',
+          label: 'Type',
+          options: [
+            { label: 'Text', value: 'text' },
+            { label: 'Email', value: 'email' },
+            { label: 'Number', value: 'number' },
+            { label: 'Password', value: 'password' },
+            { label: 'Multiline', value: 'textarea' },
+          ],
+        },
+        style: styleField(),
+        animation: animationField(),
+      },
+      defaultProps: {
+        label: 'Email',
+        placeholder: 'you@example.com',
+        value: '',
+        name: 'email',
+        type: 'email',
+      },
+      render: ({ label, placeholder, value, name, type, style, animation, puck }) => {
+        const animated = animationProps(animation)
+        const control = {
+          className: 'lc-field__control',
+          style: toStyle(style),
+          name: safeFieldName(name),
+          placeholder,
+          readOnly: puck?.isEditing || undefined,
+          tabIndex: puck?.isEditing ? -1 : undefined,
+        }
+        return (
+          <label className={withClass('lc-field', animated.className)} style={animated.style}>
+            {label ? <span className="lc-field__label">{label}</span> : null}
+            {type === 'textarea' ? (
+              <textarea {...control} rows={4} {...(puck?.isEditing ? { value } : { defaultValue: value })} />
+            ) : (
+              <input {...control} type={type} {...(puck?.isEditing ? { value } : { defaultValue: value })} />
+            )}
+          </label>
+        )
+      },
+    },
     Stack: {
       fields: {
         direction: {
@@ -263,6 +313,7 @@ export const config: ComponentConfig = {
       label: 'Free canvas',
       fields: {
         artboard: custom(ArtboardField),
+        viewports: custom(ViewportField),
         background: custom(BackgroundField),
         grid: custom(GridField),
         elements: custom(ElementsField),
@@ -278,7 +329,7 @@ export const config: ComponentConfig = {
         return puck?.isEditing ? (
           <FreeCanvasEditor blockId={id} frame={style} animation={animation} {...canvas} />
         ) : (
-          <FreeCanvasView frame={style} animation={animation} {...canvas} />
+          <FreeCanvasView canvasId={id} frame={style} animation={animation} {...canvas} />
         )
       },
     },

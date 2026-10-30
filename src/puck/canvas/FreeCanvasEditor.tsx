@@ -5,17 +5,18 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 
 import { containerUnit } from '../style/toStyle'
 import { CANVAS_LIMITS, type FreeElement } from './canvasTypes'
-import { selectElement, useSelectedElement } from './canvasStore'
+import { selectElement, setViewport, useSelectedElement, useViewport } from './canvasStore'
 import { ElementBody, boardProps, boxStyle, type CanvasFrameProps } from './FreeCanvasView'
 import { resizeBox, rotationFromPointer, snapMove, type Guides } from './geometry'
 import { duplicateElement, removeElement, shiftLayer, updateElement } from './operations'
+import { VIEWPORT_LABELS, VIEWPORTS, applyBox, canvasBoards, placeElement, type PlacedElement } from './viewports'
 
 type Point = { x: number; y: number }
 
 type Interaction =
-  | { type: 'move'; id: string; start: FreeElement; pointer: Point; moved: boolean }
-  | { type: 'resize'; id: string; start: FreeElement; pointer: Point; hx: number; hy: number; moved: boolean }
-  | { type: 'rotate'; id: string; start: FreeElement; center: Point; moved: boolean }
+  | { type: 'move'; id: string; start: PlacedElement; pointer: Point; moved: boolean }
+  | { type: 'resize'; id: string; start: PlacedElement; pointer: Point; hx: number; hy: number; moved: boolean }
+  | { type: 'rotate'; id: string; start: PlacedElement; center: Point; moved: boolean }
 
 const HANDLES = [
   [-1, -1],
@@ -31,7 +32,7 @@ const HANDLES = [
 const handleCursor = (hx: number, hy: number) =>
   hx === 0 ? 'ns-resize' : hy === 0 ? 'ew-resize' : hx === hy ? 'nwse-resize' : 'nesw-resize'
 
-const TEXT_KINDS = new Set(['heading', 'text', 'button'])
+const TEXT_KINDS = new Set(['heading', 'text', 'button', 'input', 'shape'])
 const SNAP_THRESHOLD_PX = 6
 const MIN_GRID_SPACING_PX = 6
 
@@ -93,20 +94,23 @@ function InlineText({
 }
 
 export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blockId: string }) {
-  const { artboard, grid, elements } = props
+  const { grid, elements } = props
   const getPuck = useGetPuck()
   const selectedId = useSelectedElement(blockId)
-  const [draft, setDraft] = useState<FreeElement | null>(null)
+  const viewport = useViewport(blockId)
+  const boards = canvasBoards(props)
+  const frame = boards[viewport]
+  const [draft, setDraft] = useState<PlacedElement | null>(null)
   const [guides, setGuides] = useState<Guides | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [boardPx, setBoardPx] = useState(artboard.width)
+  const [boardPx, setBoardPx] = useState(frame.width)
   const boardRef = useRef<HTMLDivElement>(null)
   const interaction = useRef<Interaction | null>(null)
-  const draftRef = useRef<FreeElement | null>(null)
-  const latest = useRef({ props, selectedId, editingId })
+  const draftRef = useRef<PlacedElement | null>(null)
+  const latest = useRef({ props, selectedId, editingId, viewport, boards })
 
   useLayoutEffect(() => {
-    latest.current = { props, selectedId, editingId }
+    latest.current = { props, selectedId, editingId, viewport, boards }
   })
 
   const commit = useCallback(
@@ -125,7 +129,7 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
     [getPuck, blockId],
   )
 
-  const setDraftElement = (element: FreeElement | null) => {
+  const setDraftElement = (element: PlacedElement | null) => {
     draftRef.current = element
     setDraft(element)
   }
@@ -154,7 +158,8 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
   useEffect(() => {
     const board = boardRef.current
     if (!board) return
-    const designPerScreenPx = () => latest.current.props.artboard.width / board.getBoundingClientRect().width
+    const frameOf = () => canvasBoards(latest.current.props)[latest.current.viewport]
+    const designPerScreenPx = () => frameOf().width / board.getBoundingClientRect().width
 
     const onPointerDown = (event: PointerEvent) => {
       // Stops Puck from starting a drag of the whole block; clicks still bubble so Puck selects it.
@@ -171,8 +176,10 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
       }
 
       const id = node.dataset.lcEl
-      const start = latest.current.props.elements.find((element) => element.id === id)
-      if (!start) return
+      const stored = latest.current.props.elements.find((element) => element.id === id)
+      if (!stored) return
+      const placedBoards = canvasBoards(latest.current.props)
+      const start = placeElement(stored, latest.current.viewport, placedBoards)
       selectElement(blockId, id)
       event.preventDefault()
       board.focus({ preventScroll: true })
@@ -181,7 +188,7 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
       const handle = target.closest<HTMLElement>('[data-lc-handle]')?.dataset.lcHandle
       if (handle === 'rotate') {
         const rect = board.getBoundingClientRect()
-        const ratio = rect.width / latest.current.props.artboard.width
+        const ratio = rect.width / frameOf().width
         interaction.current = {
           type: 'rotate',
           id,
@@ -231,11 +238,14 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
         return
       }
 
-      const others = latestProps.elements.filter((element) => element.id !== current.id)
+      const placedBoards = canvasBoards(latestProps)
+      const others = latestProps.elements
+        .filter((element) => element.id !== current.id)
+        .map((element) => placeElement(element, latest.current.viewport, placedBoards))
       const snapped = snapMove(
         { ...current.start, x: current.start.x + dx, y: current.start.y + dy },
         others,
-        latestProps.artboard,
+        placedBoards[latest.current.viewport],
         { grid: gridSize, threshold: freeMove ? 0 : SNAP_THRESHOLD_PX * scale },
       )
       setDraftElement({ ...current.start, x: snapped.x, y: snapped.y })
@@ -247,7 +257,18 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
       interaction.current = null
       const finished = draftRef.current
       if (current?.moved && finished) {
-        commit(updateElement(latest.current.props.elements, finished.id, finished))
+        const stored = latest.current.props.elements.find((element) => element.id === finished.id)
+        if (stored) {
+          const next = applyBox(stored, latest.current.viewport, {
+            x: finished.x,
+            y: finished.y,
+            w: finished.w,
+            h: finished.h,
+            rotation: finished.rotation,
+            hidden: finished.hidden,
+          })
+          commit(updateElement(latest.current.props.elements, finished.id, next))
+        }
       }
       setDraftElement(null)
       setGuides(null)
@@ -267,6 +288,7 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
       if (!id) return
       const element = latestProps.elements.find((item) => item.id === id)
       if (!element) return
+      const placed = placeElement(element, latest.current.viewport, canvasBoards(latestProps))
       const step = event.shiftKey ? (latestProps.grid.snap ? latestProps.grid.size : 10) : 1
       const nudge = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[
         event.key
@@ -274,7 +296,13 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
       const modifier = event.ctrlKey || event.metaKey
 
       if (nudge) {
-        commit(updateElement(latestProps.elements, id, { x: element.x + nudge[0], y: element.y + nudge[1] }))
+        commit(
+          updateElement(
+            latestProps.elements,
+            id,
+            applyBox(element, latest.current.viewport, { ...placed, x: placed.x + nudge[0], y: placed.y + nudge[1] }),
+          ),
+        )
       } else if (event.key === 'Delete' || event.key === 'Backspace') {
         commit(removeElement(latestProps.elements, id))
         selectElement(blockId, null)
@@ -313,24 +341,42 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
     }
   }, [blockId, commit])
 
-  const unit = containerUnit(artboard.width)
-  const shown = draft ? elements.map((element) => (element.id === draft.id ? draft : element)) : elements
-  const screenPerDesignPx = boardPx / artboard.width
+  const unit = containerUnit(props.artboard.width)
+  const placed = elements.map((element) => placeElement(element, viewport, boards))
+  const shown = draft ? placed.map((element) => (element.id === draft.id ? draft : element)) : placed
+  const screenPerDesignPx = boardPx / frame.width
   const gridStep = grid.size * Math.max(1, Math.ceil(MIN_GRID_SPACING_PX / (grid.size * screenPerDesignPx)))
 
   return (
+    <div className="lc-canvas-shell">
+      <div className="lc-viewports" role="tablist" aria-label="Screen size">
+        {VIEWPORTS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={viewport === id}
+            onClick={() => setViewport(blockId, id)}
+          >
+            {VIEWPORT_LABELS[id]}
+          </button>
+        ))}
+      </div>
+      <p className="lc-viewports__size">
+        {VIEWPORT_LABELS[viewport]} · {frame.width} × {frame.height}
+      </p>
     <div
       ref={boardRef}
       tabIndex={0}
       role="application"
-      aria-label="Free canvas. Click an element to select it, drag to move, arrow keys to nudge, Enter to edit text."
-      {...boardProps(props, 'lc-canvas lc-canvas--editing')}
+      aria-label={`Free canvas, ${VIEWPORT_LABELS[viewport]} size. Click an element to select it, drag to move, arrow keys to nudge, Enter to edit text.`}
+      {...boardProps(props, 'lc-canvas lc-canvas--editing', frame)}
     >
       {grid.show && (
         <div
           className="lc-canvas__grid"
           aria-hidden="true"
-          style={{ backgroundSize: `${percent(gridStep, artboard.width)} ${percent(gridStep, artboard.height)}` }}
+          style={{ backgroundSize: `${percent(gridStep, frame.width)} ${percent(gridStep, frame.height)}` }}
         />
       )}
       {shown.map((element) => {
@@ -340,8 +386,8 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
           <div
             key={element.id}
             data-lc-el={element.id}
-            className={`lc-el${selected ? ' lc-el--selected' : ''}`}
-            style={boxStyle(element, artboard)}
+            className={`lc-el${selected ? ' lc-el--selected' : ''}${element.hidden ? ' lc-el--hidden' : ''}`}
+            style={boxStyle(element, frame)}
           >
             <ElementBody
               element={element}
@@ -368,11 +414,12 @@ export function FreeCanvasEditor({ blockId, ...props }: CanvasFrameProps & { blo
         )
       })}
       {guides?.x.map((x) => (
-        <div key={`x${x}`} className="lc-canvas__guide lc-canvas__guide--x" style={{ left: percent(x, artboard.width) }} />
+        <div key={`x${x}`} className="lc-canvas__guide lc-canvas__guide--x" style={{ left: percent(x, frame.width) }} />
       ))}
       {guides?.y.map((y) => (
-        <div key={`y${y}`} className="lc-canvas__guide lc-canvas__guide--y" style={{ top: percent(y, artboard.height) }} />
+        <div key={`y${y}`} className="lc-canvas__guide lc-canvas__guide--y" style={{ top: percent(y, frame.height) }} />
       ))}
+    </div>
     </div>
   )
 }

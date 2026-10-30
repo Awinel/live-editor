@@ -1,6 +1,6 @@
 'use client'
 
-import { FieldLabel, createUsePuck } from '@puckeditor/core'
+import { FieldLabel, createUsePuck, useGetPuck } from '@puckeditor/core'
 
 import '../style/fields.css'
 
@@ -13,16 +13,29 @@ import {
   CANVAS_LIMITS,
   ELEMENT_KINDS,
   GRID_SIZES,
+  INPUT_TYPES,
   KIND_LABELS,
+  isInputType,
   createElement,
   type Artboard,
   type ElementContent,
+  type FreeCanvasProps,
   type FreeElement,
   type GridSettings,
   type GridSize,
 } from './canvasTypes'
-import { selectElement, useSelectedElement } from './canvasStore'
+import { selectElement, setViewport, useSelectedElement, useViewport } from './canvasStore'
 import { removeElement, shiftLayer, updateElement } from './operations'
+import { SHAPES, shapeLabel } from './shapes'
+import {
+  VIEWPORT_LABELS,
+  VIEWPORTS,
+  applyBox,
+  canvasBoards,
+  clearViewport,
+  placeElement,
+  scaleBox,
+} from './viewports'
 
 const usePuck = createUsePuck()
 
@@ -66,9 +79,12 @@ function NumberBox({
 }
 
 export function ArtboardField({ value, onChange, readOnly }: FieldProps<Artboard>) {
+  const blockId = usePuck((state) => state.selectedItem?.props.id as string | undefined)
+  const viewport = useViewport(blockId)
   const preset = ARTBOARD_PRESETS.find((item) => item.width === value.width && item.height === value.height)
   const [minW, maxW] = CANVAS_LIMITS.artboardWidth
   const [minH, maxH] = CANVAS_LIMITS.artboardHeight
+  if (viewport !== 'large') return <span hidden />
   return (
     <FieldLabel label="Canvas size" el="div" readOnly={readOnly}>
       <fieldset className="lc-cf" disabled={readOnly}>
@@ -106,7 +122,95 @@ export function ArtboardField({ value, onChange, readOnly }: FieldProps<Artboard
             onChange={(height) => onChange({ ...value, height: Math.min(maxH, Math.max(minH, height)) })}
           />
         </div>
-        <p className="lc-cf__hint">On smaller screens the whole canvas scales down proportionally.</p>
+        <p className="lc-cf__hint">This is the normal, large design. Medium and Small start from it until you move something there.</p>
+      </fieldset>
+    </FieldLabel>
+  )
+}
+
+export function ViewportField({
+  value,
+  onChange,
+  readOnly,
+}: FieldProps<FreeCanvasProps['viewports']>) {
+  const getPuck = useGetPuck()
+  const blockId = usePuck((state) => state.selectedItem?.props.id as string | undefined)
+  const artboard = usePuck((state) => state.selectedItem?.props.artboard as Artboard | undefined)
+  const viewport = useViewport(blockId)
+  const large = artboard ?? { width: 960, height: 540 }
+  const boards = canvasBoards({ artboard: large, viewports: value })
+  const active = boards[viewport]
+  const [minW, maxW] = CANVAS_LIMITS.artboardWidth
+  const [minH, maxH] = CANVAS_LIMITS.artboardHeight
+  const widthCap = viewport === 'small' ? boards.medium.width : viewport === 'medium' ? large.width : maxW
+
+  const setSize = (patch: Partial<Artboard>) => {
+    if (viewport === 'large') return
+    onChange({
+      ...value,
+      [viewport]: {
+        width: Math.min(widthCap, Math.max(minW, patch.width ?? active.width)),
+        height: Math.min(maxH, Math.max(minH, patch.height ?? active.height)),
+      },
+    })
+  }
+
+  const reset = () => {
+    if (!blockId || viewport === 'large') return
+    const puck = getPuck()
+    const selector = puck.getSelectorForId(blockId)
+    const item = puck.getItemById(blockId)
+    if (!selector || !item) return
+    const elements = Array.isArray(item.props.elements) ? clearViewport(item.props.elements, viewport) : []
+    const viewports = { ...(value ?? {}) }
+    delete viewports[viewport]
+    puck.dispatch({
+      type: 'replace',
+      destinationIndex: selector.index,
+      destinationZone: selector.zone,
+      data: {
+        ...item,
+        props: {
+          ...item.props,
+          elements,
+          viewports: viewports.medium || viewports.small ? viewports : undefined,
+        },
+      },
+    })
+  }
+
+  return (
+    <FieldLabel label="Screen size" el="div" readOnly={readOnly}>
+      <fieldset className="lc-cf" disabled={readOnly}>
+        <div className="lc-viewports" role="tablist" aria-label="Screen size">
+          {VIEWPORTS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={viewport === id}
+              onClick={() => blockId && setViewport(blockId, id)}
+            >
+              {VIEWPORT_LABELS[id]}
+            </button>
+          ))}
+        </div>
+        {viewport === 'large' ? (
+          <p className="lc-cf__hint">Large is the normal design. Medium and Small are the layouts for narrower screens, and the exported code switches to them.</p>
+        ) : (
+          <>
+            <div className="lc-sf__grid">
+              <NumberBox label="Width" value={active.width} min={minW} max={widthCap} onChange={(width) => setSize({ width })} />
+              <NumberBox label="Height" value={active.height} min={minH} max={maxH} onChange={(height) => setSize({ height })} />
+            </div>
+            <button type="button" className="lc-cf__button" onClick={reset}>
+              Reset {VIEWPORT_LABELS[viewport].toLowerCase()} layout
+            </button>
+            <p className="lc-cf__hint">
+              Moves and resizes here belong to {VIEWPORT_LABELS[viewport].toLowerCase()} only. Resetting follows the next larger size again.
+            </p>
+          </>
+        )}
       </fieldset>
     </FieldLabel>
   )
@@ -161,15 +265,18 @@ export function GridField({ value, onChange, readOnly }: FieldProps<GridSettings
 
 const summary = (element: FreeElement) =>
   element.content.text?.trim() ||
+  element.content.label?.trim() ||
+  element.content.placeholder?.trim() ||
   element.content.alt?.trim() ||
-  (element.kind === 'shape' ? (element.content.shape === 'ellipse' ? 'Ellipse' : 'Rectangle') : 'Untitled')
+  (element.kind === 'shape' ? shapeLabel(element.content.shape) : 'Untitled')
 
 const STYLE_GROUPS: Record<FreeElement['kind'], StyleGroup[]> = {
   heading: ['typography', 'spacing', 'fill', 'effects'],
   text: ['typography', 'spacing', 'fill', 'effects'],
   button: ['typography', 'spacing', 'fill', 'effects'],
   image: ['fill', 'effects'],
-  shape: ['fill', 'effects'],
+  input: ['typography', 'spacing', 'fill', 'effects'],
+  shape: ['typography', 'fill', 'effects'],
 }
 
 function ContentEditor({
@@ -271,30 +378,114 @@ function ContentEditor({
           </div>
         </>
       )
-    case 'shape':
+    case 'input':
       return (
-        <label className="lc-sf__number">
-          <span className="lc-sf__label">Shape</span>
-          <select
-            className="lc-sf__input"
-            aria-label="Shape"
-            value={content.shape ?? 'rect'}
-            onChange={(event) => set({ shape: event.target.value === 'ellipse' ? 'ellipse' : 'rect' })}
-          >
-            <option value="rect">Rectangle</option>
-            <option value="ellipse">Ellipse</option>
-          </select>
-        </label>
+        <>
+          <label className="lc-sf__number">
+            <span className="lc-sf__label">Label</span>
+            <input
+              className="lc-sf__input"
+              value={content.label ?? ''}
+              maxLength={120}
+              onChange={(event) => set({ label: event.target.value })}
+            />
+          </label>
+          <label className="lc-sf__number">
+            <span className="lc-sf__label">Value</span>
+            <input
+              className="lc-sf__input"
+              value={content.text ?? ''}
+              maxLength={500}
+              onChange={(event) => set({ text: event.target.value })}
+            />
+          </label>
+          <div className="lc-sf__grid">
+            <label className="lc-sf__number">
+              <span className="lc-sf__label">Placeholder</span>
+              <input
+                className="lc-sf__input"
+                value={content.placeholder ?? ''}
+                maxLength={200}
+                onChange={(event) => set({ placeholder: event.target.value })}
+              />
+            </label>
+            <label className="lc-sf__number">
+              <span className="lc-sf__label">Name</span>
+              <input
+                className="lc-sf__input"
+                value={content.name ?? ''}
+                maxLength={64}
+                onChange={(event) => set({ name: event.target.value })}
+              />
+            </label>
+          </div>
+          <label className="lc-sf__number">
+            <span className="lc-sf__label">Type</span>
+            <select
+              className="lc-sf__input"
+              aria-label="Input type"
+              value={content.inputType ?? 'text'}
+              onChange={(event) => set({ inputType: isInputType(event.target.value) ? event.target.value : 'text' })}
+            >
+              {INPUT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type === 'textarea' ? 'Multiline' : type[0].toUpperCase() + type.slice(1)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
       )
+    case 'shape': {
+      const current = content.shape ?? 'rect'
+      return (
+        <>
+          <label className="lc-sf__number">
+            <span className="lc-sf__label">Text</span>
+            <input
+              className="lc-sf__input"
+              value={content.text ?? ''}
+              maxLength={CANVAS_LIMITS.maxText}
+              onChange={(event) => set({ text: event.target.value })}
+            />
+          </label>
+          <div className="lc-cf__shapes" role="group" aria-label="Shape">
+          {SHAPES.map((shape) => (
+            <button
+              key={shape.id}
+              type="button"
+              className="lc-cf__shape"
+              aria-pressed={current === shape.id}
+              aria-label={shape.label}
+              onClick={() => set({ shape: shape.id })}
+            >
+              <span
+                className="lc-cf__shape-mark"
+                style={{
+                  borderRadius: shape.id === 'ellipse' ? '50%' : undefined,
+                  clipPath: 'clip' in shape ? shape.clip : undefined,
+                }}
+              />
+              {shape.label}
+            </button>
+          ))}
+          </div>
+        </>
+      )
+    }
   }
 }
 
 export function ElementsField({ value, onChange, readOnly }: FieldProps<FreeElement[]>) {
   const blockId = usePuck((state) => state.selectedItem?.props.id as string | undefined)
   const artboard = usePuck((state) => state.selectedItem?.props.artboard as Artboard | undefined)
+  const viewports = usePuck((state) => state.selectedItem?.props.viewports as FreeCanvasProps['viewports'])
+  const viewport = useViewport(blockId)
+  const boards = canvasBoards({ artboard: artboard ?? { width: 960, height: 540 }, viewports })
   const selectedId = useSelectedElement(blockId)
   const elements = value ?? []
   const selected = elements.find((element) => element.id === selectedId)
+  const placed = selected ? placeElement(selected, viewport, boards) : null
   const select = (id: string | null) => blockId && selectElement(blockId, id)
   const patch = (id: string, change: Partial<FreeElement>) => onChange(updateElement(elements, id, change))
   const full = elements.length >= CANVAS_LIMITS.maxElements
@@ -310,7 +501,22 @@ export function ElementsField({ value, onChange, readOnly }: FieldProps<FreeElem
               className="lc-cf__button"
               disabled={full}
               onClick={() => {
-                const element = createElement(kind, artboard ?? { width: 960, height: 540 })
+                const made = createElement(kind, boards[viewport])
+                const element =
+                  viewport === 'large'
+                    ? made
+                    : applyBox(
+                        {
+                          ...made,
+                          ...scaleBox(
+                            { x: made.x, y: made.y, w: made.w, h: made.h, rotation: 0 },
+                            boards[viewport],
+                            boards.large,
+                          ),
+                        },
+                        viewport,
+                        { x: made.x, y: made.y, w: made.w, h: made.h, rotation: 0 },
+                      )
                 onChange([...elements, element])
                 select(element.id)
               }}
@@ -378,34 +584,60 @@ export function ElementsField({ value, onChange, readOnly }: FieldProps<FreeElem
           <p className="lc-cf__hint">The canvas is empty. Add an element to start.</p>
         )}
 
-        {selected ? (
+        {selected && placed ? (
           <section className="lc-cf__inspector" aria-label={`Selected ${KIND_LABELS[selected.kind]}`}>
             <h3 className="lc-cf__inspector-title">Selected {KIND_LABELS[selected.kind].toLowerCase()}</h3>
             <ContentEditor element={selected} onContent={(content) => patch(selected.id, { content })} />
             <div className="lc-cf__grid-4">
-              <NumberBox label="X" value={selected.x} onChange={(x) => patch(selected.id, { x })} />
-              <NumberBox label="Y" value={selected.y} onChange={(y) => patch(selected.id, { y })} />
+              <NumberBox
+                label="X"
+                value={placed.x}
+                onChange={(x) => patch(selected.id, applyBox(selected, viewport, { ...placed, x }))}
+              />
+              <NumberBox
+                label="Y"
+                value={placed.y}
+                onChange={(y) => patch(selected.id, applyBox(selected, viewport, { ...placed, y }))}
+              />
               <NumberBox
                 label="Width"
-                value={selected.w}
+                value={placed.w}
                 min={CANVAS_LIMITS.minSize}
-                onChange={(w) => patch(selected.id, { w: Math.max(CANVAS_LIMITS.minSize, w) })}
+                onChange={(w) =>
+                  patch(selected.id, applyBox(selected, viewport, { ...placed, w: Math.max(CANVAS_LIMITS.minSize, w) }))
+                }
               />
               <NumberBox
                 label="Height"
-                value={selected.h}
+                value={placed.h}
                 min={CANVAS_LIMITS.minSize}
-                onChange={(h) => patch(selected.id, { h: Math.max(CANVAS_LIMITS.minSize, h) })}
+                onChange={(h) =>
+                  patch(selected.id, applyBox(selected, viewport, { ...placed, h: Math.max(CANVAS_LIMITS.minSize, h) }))
+                }
               />
               <NumberBox
                 label="Rotation"
-                value={selected.rotation}
+                value={placed.rotation}
                 min={-180}
                 max={180}
                 unit="°"
-                onChange={(rotation) => patch(selected.id, { rotation: Math.min(180, Math.max(-180, rotation)) })}
+                onChange={(rotation) =>
+                  patch(selected.id, applyBox(selected, viewport, { ...placed, rotation: Math.min(180, Math.max(-180, rotation)) }))
+                }
               />
             </div>
+            {viewport !== 'large' && (
+              <label className="lc-sf__check">
+                <input
+                  type="checkbox"
+                  checked={Boolean(placed.hidden)}
+                  onChange={(event) =>
+                    patch(selected.id, applyBox(selected, viewport, { ...placed, hidden: event.target.checked }))
+                  }
+                />
+                Hide on {VIEWPORT_LABELS[viewport].toLowerCase()}
+              </label>
+            )}
             <StyleEditor
               key={selected.id}
               value={selected.style}

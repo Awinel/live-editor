@@ -1,17 +1,39 @@
 import type { BlockAnimation } from '../animation/animationTypes'
 import type { BlockStyle } from '../style/styleTypes'
+import type { ShapeId } from './shapes'
 
-export const ELEMENT_KINDS = ['heading', 'text', 'button', 'image', 'shape'] as const
+export const ELEMENT_KINDS = ['heading', 'text', 'button', 'image', 'input', 'shape'] as const
 export type ElementKind = (typeof ELEMENT_KINDS)[number]
+
+export const INPUT_TYPES = ['text', 'email', 'number', 'password', 'textarea'] as const
+export type InputType = (typeof INPUT_TYPES)[number]
+
+export function isInputType(value: unknown): value is InputType {
+  return typeof value === 'string' && (INPUT_TYPES as readonly string[]).includes(value)
+}
 
 export type ElementContent = {
   text?: string
+  label?: string
+  placeholder?: string
+  name?: string
+  inputType?: InputType
   level?: 'h2' | 'h3'
   href?: string
   src?: string
   alt?: string
   fit?: 'cover' | 'contain'
-  shape?: 'rect' | 'ellipse'
+  shape?: ShapeId
+}
+
+/** One size's box, in that size's own artboard pixels. `hidden` omits it at that size only. */
+export type ElementBox = {
+  x: number
+  y: number
+  w: number
+  h: number
+  rotation: number
+  hidden?: boolean
 }
 
 export type FreeElement = {
@@ -25,6 +47,8 @@ export type FreeElement = {
   content: ElementContent
   style?: BlockStyle
   animation?: BlockAnimation
+  /** Medium and small layouts. Missing sizes follow the next larger one. */
+  responsive?: { medium?: ElementBox; small?: ElementBox }
 }
 
 export type Artboard = { width: number; height: number }
@@ -36,6 +60,8 @@ export type FreeCanvasProps = {
   background?: string
   grid: GridSettings
   elements: FreeElement[]
+  /** Frames for the narrower layouts. Omitted sizes use a default derived from the large artboard. */
+  viewports?: { medium?: Artboard; small?: Artboard }
 }
 
 export const CANVAS_LIMITS = {
@@ -62,6 +88,7 @@ export const KIND_LABELS: Record<ElementKind, string> = {
   text: 'Text',
   button: 'Button',
   image: 'Image',
+  input: 'Input',
   shape: 'Shape',
 }
 
@@ -98,6 +125,20 @@ const TEMPLATES: Record<ElementKind, Omit<FreeElement, 'id' | 'x' | 'y' | 'rotat
     h: 200,
     content: { src: '', alt: '', fit: 'cover' },
     style: { radius: 8 },
+  },
+  input: {
+    kind: 'input',
+    w: 320,
+    h: 84,
+    content: { label: 'Email', text: '', placeholder: 'you@example.com', name: 'email', inputType: 'email' },
+    style: {
+      fontSize: 16,
+      background: '#ffffff',
+      color: '#0f4c5c',
+      radius: 6,
+      borderWidth: 2,
+      borderColor: '#0f4c5c',
+    },
   },
   shape: {
     kind: 'shape',

@@ -58,12 +58,59 @@ describe('HTML + CSS export', () => {
   })
 })
 
+describe('input and shape content', () => {
+  it('exports a form field and the words inside a shape', () => {
+    const files = exportComposition(
+      {
+        root: { props: {} },
+        content: [
+          {
+            type: 'Input',
+            props: { id: 'i', label: 'Email', placeholder: 'you@example.com', value: 'ada@example.com', name: 'email', type: 'email' },
+          },
+          {
+            type: 'FreeCanvas',
+            props: {
+              id: 'c',
+              artboard: { width: 400, height: 400 },
+              grid: { show: false, snap: false, size: 8 },
+              elements: [
+                {
+                  id: 's',
+                  kind: 'shape',
+                  x: 0,
+                  y: 0,
+                  w: 120,
+                  h: 120,
+                  rotation: 0,
+                  content: { shape: 'star', text: 'New' },
+                },
+              ],
+            },
+          },
+        ],
+      },
+      'html',
+      'Form',
+    )
+    const html = file(files, 'snippet')
+    const css = file(files, 'css')
+
+    expect(html).toContain('<span class="lc-field__label">Email</span>')
+    expect(html).toContain('type="email"')
+    expect(html).toContain('name="email"')
+    expect(html).toContain('value="ada@example.com"')
+    expect(html).toContain('>New</div>')
+    expect(css).toContain('clip-path: polygon(')
+  })
+})
+
 describe('Tailwind export', () => {
   const files = exportComposition(composition, 'tailwind', 'Launch')
   const html = file(files, 'snippet')
   const classOf = (marker: string) => {
     const line = html.split('\n').find((item) => item.includes(marker))!
-    return /class="([^"]+)"/.exec(line)![1].split(' ')
+    return /className="([^"]+)"/.exec(line)![1].split(' ')
   }
 
   it('merges base and custom styles so each property gets one utility', () => {
@@ -83,7 +130,71 @@ describe('Tailwind export', () => {
     expect(html).toContain('rotate-[15deg]')
     expect(html).toContain('left-[10%]')
     expect(html).toContain('text-[length:5cqw]')
-    expect(html).not.toMatch(/class="[^"]*lc-/)
+    expect(html).toContain('className="')
+    expect(html).not.toMatch(/className="[^"]*lc-/)
+  })
+
+  it('clears a large rotation on the small screen with the rotate property', () => {
+    const files = exportComposition(
+      {
+        root: { props: {} },
+        content: [
+          {
+            type: 'FreeCanvas',
+            props: {
+              id: 'c',
+              artboard: { width: 960, height: 540 },
+              grid: { show: false, snap: false, size: 8 },
+              elements: [
+                {
+                  id: 'card',
+                  kind: 'shape',
+                  x: 356,
+                  y: 89,
+                  w: 258,
+                  h: 391,
+                  rotation: 25,
+                  content: { shape: 'rect' },
+                  responsive: { small: { x: 138, y: 145, w: 212, h: 251, rotation: 0 } },
+                },
+              ],
+            },
+          },
+        ],
+      },
+      'tailwind',
+      'Card',
+    )
+    const snippet = file(files, 'snippet')
+    expect(snippet).toContain('rotate-[25deg]')
+    expect(snippet).toContain('max-[480px]:rotate-0')
+    expect(snippet).not.toContain('max-[768px]:rotate-')
+    expect(snippet).not.toContain('[transform:none]')
+  })
+
+  it('closes images and inputs so the snippet is valid JSX', () => {
+    const files = exportComposition(
+      {
+        root: { props: {} },
+        content: [
+          { type: 'Image', props: { id: 'img', src: 'https://example.com/photo.png', alt: 'Photo' } },
+          { type: 'Input', props: { id: 'i', label: 'Email', name: 'email', type: 'email' } },
+        ],
+      },
+      'tailwind',
+      'Fields',
+    )
+    const snippet = file(files, 'snippet')
+    expect(snippet).toMatch(/<img\b[^>]*\/>/)
+    expect(snippet).toMatch(/<input\b[^>]*\/>/)
+    expect(snippet).not.toMatch(/<img\b[^>]*[^/]>/)
+    expect(snippet).not.toMatch(/<input\b[^>]*[^/]>/)
+
+    const page = file(files, 'page')
+    expect(page).toContain('class="')
+    expect(page).not.toContain('className=')
+    expect(page).toMatch(/<img\b[^>]*>/)
+    expect(page).not.toMatch(/<img\b[^>]*\/>/)
   })
 
   it('previews standalone through the Tailwind browser build', () => {

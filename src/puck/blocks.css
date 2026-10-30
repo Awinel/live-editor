@@ -130,6 +130,41 @@
   outline-offset: 2px;
 }
 
+.lc-root .lc-field {
+  display: grid;
+  gap: 6px;
+  align-self: flex-start;
+  width: min(100%, 360px);
+}
+
+.lc-root .lc-field__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.lc-root .lc-field__control {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 2px solid var(--lc-teal);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--lc-teal);
+  font: inherit;
+}
+
+.lc-root textarea.lc-field__control {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.lc-root .lc-field__control:focus-visible {
+  outline: 3px solid var(--lc-orange);
+  outline-offset: 2px;
+}
+
 .lc-root .lc-stack {
   display: flex;
 }
@@ -175,6 +210,46 @@
 }
 
 /* Free canvas: positions are percentages and lengths are cqw, so the artboard scales as one piece. */
+.lc-canvas-shell {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.lc-viewports {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(15, 76, 92, 0.08);
+}
+
+.lc-viewports button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: transparent;
+  color: #0f4c5c;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lc-viewports button[aria-selected='true'] {
+  background: #fff;
+  color: #5f0f40;
+  box-shadow: 0 1px 2px rgba(15, 76, 92, 0.18);
+}
+
+.lc-viewports__size {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3d6a76;
+}
+
 .lc-root .lc-canvas {
   position: relative;
   width: 100%;
@@ -229,6 +304,40 @@
   object-fit: cover;
 }
 
+.lc-root .lc-el-shape {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12%;
+  text-align: center;
+}
+
+.lc-root .lc-el-input {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35em;
+}
+
+.lc-root .lc-el-input__label {
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.lc-root .lc-el-input__control {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0.7em;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  resize: none;
+}
+
 .lc-root .lc-el-image--empty {
   display: grid;
   place-items: center;
@@ -261,6 +370,10 @@
 
 .lc-root .lc-canvas--editing .lc-el:hover:not(.lc-el--selected) {
   outline: 1px dashed var(--lc-muted);
+}
+
+.lc-root .lc-canvas--editing .lc-el--hidden {
+  opacity: 0.4;
 }
 
 .lc-root .lc-canvas--editing .lc-el--selected {

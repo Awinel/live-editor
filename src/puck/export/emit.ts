@@ -8,30 +8,40 @@ import {
 } from '../animation/animationCss'
 import type { AnimationPreset, BlockAnimation } from '../animation/animationTypes'
 import { CLASS_DEFS, type Decls } from './classes'
-import type { ElementNode, ExportNode } from './tree'
+import { mediaQuery } from '../canvas/viewports'
+import type { ElementNode, ExportNode, ResponsiveRule } from './tree'
 
-type ClassResolver = (classes: string[], style: Decls, animation?: BlockAnimation) => string
+type ClassResolver = (
+  classes: string[],
+  style: Decls,
+  animation?: BlockAnimation,
+  responsive?: ResponsiveRule[],
+) => string
 
 const escapeText = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const escapeAttr = (value: string) => escapeText(value).replace(/"/g, '&quot;')
 
-const VOID_TAGS = new Set(['img'])
+const VOID_TAGS = new Set(['img', 'input'])
 
-function attributes(node: ElementNode, resolve: ClassResolver) {
-  const className = resolve(node.classes, node.style, node.animation)
-  const pairs = Object.entries({ ...(className ? { class: className } : {}), ...node.attrs })
+type SerializeOptions = { jsx?: boolean }
+
+function attributes(node: ElementNode, resolve: ClassResolver, options: SerializeOptions) {
+  const className = resolve(node.classes, node.style, node.animation, node.responsive)
+  const classAttr = options.jsx ? 'className' : 'class'
+  const pairs = Object.entries({ ...(className ? { [classAttr]: className } : {}), ...node.attrs })
   return pairs.map(([key, value]) => ` ${key}="${escapeAttr(value)}"`).join('')
 }
 
-function serialize(node: ExportNode, resolve: ClassResolver, depth: number): string {
+function serialize(node: ExportNode, resolve: ClassResolver, depth: number, options: SerializeOptions = {}): string {
   const indent = '  '.repeat(depth)
 
   if (node.type === 'text') return `${indent}${escapeText(node.text)}`
 
   if (node.type === 'markup') {
     const className = resolve(['lc-markup'], node.style, node.animation)
+    const classAttr = options.jsx ? 'className' : 'class'
     return [
-      `${indent}<div class="${escapeAttr(className)}">`,
+      `${indent}<div ${classAttr}="${escapeAttr(className)}">`,
       `${indent}  <template shadowrootmode="open">`,
       `${indent}    <style>${node.css}</style>`,
       `${indent}    ${node.html}`,
@@ -40,13 +50,14 @@ function serialize(node: ExportNode, resolve: ClassResolver, depth: number): str
     ].join('\n')
   }
 
-  const open = `${indent}<${node.tag}${attributes(node, resolve)}>`
-  if (VOID_TAGS.has(node.tag)) return open
+  const attrs = attributes(node, resolve, options)
+  if (VOID_TAGS.has(node.tag)) return options.jsx ? `${indent}<${node.tag}${attrs} />` : `${indent}<${node.tag}${attrs}>`
+  const open = `${indent}<${node.tag}${attrs}>`
   if (node.children.every((child) => child.type === 'text')) {
     const inline = node.children.map((child) => escapeText((child as { text: string }).text)).join('')
     return `${open}${inline}</${node.tag}>`
   }
-  const children = node.children.map((child) => serialize(child, resolve, depth + 1)).join('\n')
+  const children = node.children.map((child) => serialize(child, resolve, depth + 1, options)).join('\n')
   return `${open}\n${children}\n${indent}</${node.tag}>`
 }
 
@@ -59,16 +70,24 @@ export function emitHtmlCss(tree: ElementNode): { html: string; css: string } {
   const used = new Set<string>()
   const presets = new Set<AnimationPreset>()
   const rules: string[] = []
+  const media = new Map<string, { maxWidth: number; minWidth?: number; blocks: string[] }>()
 
-  const resolve: ClassResolver = (baseClasses, baseStyle, animation) => {
+  const resolve: ClassResolver = (baseClasses, baseStyle, animation, responsive) => {
     const classes = animation ? [...baseClasses, ...animationClasses(animation)] : baseClasses
     const style = animation ? { ...baseStyle, ...animationVars(animation) } : baseStyle
     if (animation) presets.add(animation.preset)
     classes.forEach((name) => used.add(name))
-    if (Object.keys(style).length === 0) return classes.join(' ')
+    if (Object.keys(style).length === 0 && !responsive?.length) return classes.join(' ')
     const name = `lc-n${rules.length + 1}`
     // The extra .lc-root raises specificity so per-element styles beat base hover rules, like inline styles do.
-    rules.push(block(`.lc-root .${name}`, style))
+    if (Object.keys(style).length) rules.push(block(`.lc-root .${name}`, style))
+    for (const query of responsive ?? []) {
+      if (Object.keys(query.style).length === 0) continue
+      const key = `${query.minWidth ?? 0}:${query.maxWidth}`
+      const bucket = media.get(key) ?? { maxWidth: query.maxWidth, minWidth: query.minWidth, blocks: [] }
+      bucket.blocks.push(block(`.lc-root .${name}`, query.style))
+      media.set(key, bucket)
+    }
     return [...classes, name].join(' ')
   }
 
@@ -82,8 +101,11 @@ export function emitHtmlCss(tree: ElementNode): { html: string; css: string } {
     ])
 
   const reset = block('.lc-root,\n.lc-root *,\n.lc-root *::before,\n.lc-root *::after', { 'box-sizing': 'border-box' })
+  const queries = [...media.values()]
+    .sort((a, b) => b.maxWidth - a.maxWidth)
+    .map((item) => `@media ${mediaQuery(item)} {\n${item.blocks.join('\n\n')}\n}`)
   const animations = presets.size ? [ANIMATION_RULES, keyframesCss(presets)] : []
-  return { html, css: [reset, ...base, ...rules, ...animations].join('\n\n') }
+  return { html, css: [reset, ...base, ...rules, ...queries, ...animations].join('\n\n') }
 }
 
 const arbitrary = (value: string) => value.trim().replace(/\s*,\s*/g, ',').replace(/\s+/g, '_')
@@ -125,6 +147,10 @@ const PREFIXES: Record<string, string> = {
   'letter-spacing': 'tracking',
   'border-width': 'border',
   'border-radius': 'rounded',
+  'border-top-left-radius': 'rounded-tl',
+  'border-top-right-radius': 'rounded-tr',
+  'border-bottom-right-radius': 'rounded-br',
+  'border-bottom-left-radius': 'rounded-bl',
   'box-shadow': 'shadow',
   opacity: 'opacity',
   'font-family': 'font',
@@ -153,13 +179,22 @@ function utility(property: string, value: string): string {
       return value === 'transparent' ? 'bg-transparent' : `bg-[${v}]`
     case 'border-width':
       return value === '0' ? 'border-0' : `border-[length:${v}]`
+    case 'border-top-width':
+    case 'border-right-width':
+    case 'border-bottom-width':
+    case 'border-left-width':
+      return `border-${property.split('-')[1][0]}-[length:${v}]`
     case 'border-color':
       return `border-[color:${v}]`
     case 'aspect-ratio':
       return `aspect-[${value.replace(/\s/g, '')}]`
     case 'transform': {
       const rotation = /^rotate\((-?[\d.]+)deg\)$/.exec(value)
-      return rotation ? `rotate-[${rotation[1]}deg]` : `[transform:${v}]`
+      // `rotate` is its own CSS property in Tailwind, so a reset has to use it too.
+      // `transform: none` would leave rotate-[25deg] in place on the smaller screen.
+      if (rotation) return Number(rotation[1]) === 0 ? 'rotate-0' : `rotate-[${rotation[1]}deg]`
+      if (value === 'none') return 'rotate-0'
+      return `[transform:${v}]`
     }
     case 'opacity':
       return `opacity-[${v}]`
@@ -191,9 +226,9 @@ function animationUtilities(animation: BlockAnimation): string[] {
   }
 }
 
-export function emitTailwind(tree: ElementNode): { html: string; css: string } {
+export function emitTailwind(tree: ElementNode, options?: SerializeOptions): { html: string; css: string } {
   const presets = new Set<AnimationPreset>()
-  const resolve: ClassResolver = (classes, style, animation) => {
+  const resolve: ClassResolver = (classes, style, animation, responsive) => {
     const base: Decls = {}
     const hover: Decls = {}
     const focus: Decls = {}
@@ -208,13 +243,19 @@ export function emitTailwind(tree: ElementNode): { html: string; css: string } {
     Object.assign(base, style)
     for (const property of Object.keys(style)) delete hover[property]
     if (animation) presets.add(animation.preset)
+    const sized = (responsive ?? []).flatMap((query) => {
+      if (Object.keys(query.style).length === 0) return []
+      const min = query.minWidth ? `min-[${query.minWidth}px]:` : ''
+      return utilities(query.style, `${min}max-[${query.maxWidth}px]:`)
+    })
     return [
       ...utilities(base),
       ...utilities(hover, 'hover:'),
       ...utilities(focus, 'focus-visible:'),
       ...(animation ? animationUtilities(animation) : []),
+      ...sized,
     ].join(' ')
   }
-  const html = serialize(tree, resolve, 0)
+  const html = serialize(tree, resolve, 0, options)
   return { html, css: keyframesCss(presets) }
 }

@@ -19,6 +19,12 @@ export function safeHref(value: string | undefined): string {
   return '#'
 }
 
+/** A form control name: a letter, then letters, digits, underscores, dots or hyphens. */
+export function safeFieldName(value: string | undefined): string | undefined {
+  const name = (value ?? '').trim().slice(0, 64)
+  return /^[A-Za-z][\w.-]*$/.test(name) ? name : undefined
+}
+
 export function safeSrc(value: string | undefined): string | null {
   const src = (value ?? '').trim()
   if ((src.startsWith('/') && !src.startsWith('//')) || hasProtocol(src, IMAGE_PROTOCOLS)) return src

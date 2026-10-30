@@ -13,6 +13,8 @@ export function duplicateElement(
   const source = elements.find((element) => element.id === id)
   if (!source || elements.length >= CANVAS_LIMITS.maxElements) return { elements, id: null }
   const copy = { ...structuredClone(source), id: newElementId(), x: source.x + 16, y: source.y + 16 }
+  if (copy.responsive?.medium) copy.responsive.medium = { ...copy.responsive.medium, x: copy.responsive.medium.x + 16, y: copy.responsive.medium.y + 16 }
+  if (copy.responsive?.small) copy.responsive.small = { ...copy.responsive.small, x: copy.responsive.small.x + 16, y: copy.responsive.small.y + 16 }
   const index = elements.indexOf(source)
   return { elements: [...elements.slice(0, index + 1), copy, ...elements.slice(index + 1)], id: copy.id }
 }

@@ -15,7 +15,7 @@ const FORMATS: Array<{ value: ExportFormat; label: string; note: string }> = [
   {
     value: 'tailwind',
     label: 'Tailwind',
-    note: 'Tailwind utility classes with arbitrary values, for Tailwind v4 or v3.3 and newer. Animations add a small keyframes file for your global CSS. The full page loads the Tailwind browser build so it previews on its own.',
+    note: 'JSX with Tailwind utility classes (className, and images and inputs closed), for Tailwind v4 or v3.3 and newer. Animations add a small keyframes file for your global CSS. The full page loads the Tailwind browser build so it previews on its own.',
   },
 ]
 

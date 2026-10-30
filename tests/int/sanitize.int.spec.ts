@@ -90,6 +90,50 @@ describe('sanitizeCanvasProps', () => {
     expect(first.style).toEqual({ fontSize: 20 })
     expect(first).not.toHaveProperty('onClick')
   })
+
+  it('keeps known shapes and falls back to a rectangle', () => {
+    const props = sanitizeCanvasProps({
+      artboard: { width: 400, height: 400 },
+      elements: [
+        { id: 'a', kind: 'shape', x: 0, y: 0, w: 40, h: 40, content: { shape: 'pentagon' } },
+        { id: 'b', kind: 'shape', x: 0, y: 0, w: 40, h: 40, content: { shape: 'blob' } },
+      ],
+    })
+    expect(props.elements.map((element) => element.content.shape)).toEqual(['pentagon', 'rect'])
+  })
+
+  it('keeps input content and drops an unsafe field name', () => {
+    const props = sanitizeCanvasProps({
+      artboard: { width: 400, height: 400 },
+      elements: [
+        {
+          id: 'field',
+          kind: 'input',
+          x: 0,
+          y: 0,
+          w: 200,
+          h: 64,
+          content: { label: 'Email', text: 'ada@example.com', placeholder: 'you@example.com', name: 'onfocus=alert(1)', inputType: 'email' },
+        },
+        {
+          id: 'star',
+          kind: 'shape',
+          x: 0,
+          y: 0,
+          w: 80,
+          h: 80,
+          content: { shape: 'star', text: 'Go' },
+        },
+      ],
+    })
+    expect(props.elements[0].content).toEqual({
+      label: 'Email',
+      text: 'ada@example.com',
+      placeholder: 'you@example.com',
+      inputType: 'email',
+    })
+    expect(props.elements[1].content).toEqual({ shape: 'star', text: 'Go' })
+  })
 })
 
 describe('sanitizeComposition', () => {

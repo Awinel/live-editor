@@ -130,4 +130,43 @@ export const CLASS_DEFS: Record<string, ClassDef> = {
     focusVisible: focusRing,
   },
   'lc-el-image': { base: { 'object-fit': 'cover' } },
+  'lc-field': {
+    base: { display: 'grid', gap: '6px', 'align-self': 'flex-start', width: 'min(100%, 360px)' },
+  },
+  'lc-field__label': { base: { 'font-size': '0.875rem', 'font-weight': '600', 'line-height': '1.3' } },
+  'lc-field__control': {
+    base: {
+      width: '100%',
+      'min-height': '44px',
+      margin: '0',
+      padding: '8px 12px',
+      'border-width': '2px',
+      'border-style': 'solid',
+      'border-color': '#0f4c5c',
+      'border-radius': '6px',
+      background: '#ffffff',
+      color: '#0f4c5c',
+      font: 'inherit',
+    },
+    focusVisible: focusRing,
+  },
+  'lc-el-shape': {
+    base: { display: 'flex', 'align-items': 'center', 'justify-content': 'center', padding: '12%', 'text-align': 'center' },
+  },
+  'lc-el-input': { base: { display: 'flex', 'flex-direction': 'column', 'justify-content': 'center', gap: '0.35em' } },
+  'lc-el-input__label': { base: { 'font-size': '0.75em', 'font-weight': '600', 'line-height': '1.2' } },
+  'lc-el-input__control': {
+    base: {
+      flex: '1',
+      width: '100%',
+      'min-height': '0',
+      margin: '0',
+      padding: '0 0.7em',
+      'border-width': '0',
+      background: 'transparent',
+      color: 'inherit',
+      font: 'inherit',
+      resize: 'none',
+    },
+  },
 }

@@ -3,6 +3,7 @@ export const BLOCK_TYPES = [
   'Text',
   'Image',
   'Button',
+  'Input',
   'Stack',
   'Markup',
   'FreeCanvas',

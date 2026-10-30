@@ -3,9 +3,11 @@ import {
   COLOR_KEYS,
   ENUMS,
   NUMBER_LIMITS,
+  SHADOW_LIMITS,
   isSafeColor,
   type BlockStyle,
   type NumericStyleKey,
+  type ShadowLayer,
 } from './styleTypes'
 
 export function clampNumber(value: unknown, [min, max]: [number, number]): number | undefined {
@@ -37,5 +39,25 @@ export function sanitizeStyle(value: unknown): BlockStyle | undefined {
     if (input[key] === true) style[key] = true
   }
 
+  const shadows = sanitizeShadows(input.shadows)
+  if (shadows) style.shadows = shadows
+
   return Object.keys(style).length ? (style as BlockStyle) : undefined
+}
+
+function sanitizeShadows(value: unknown): ShadowLayer[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const layers = value
+    .slice(0, SHADOW_LIMITS.layers)
+    .filter((layer): layer is Record<string, unknown> => typeof layer === 'object' && layer !== null)
+    .map((layer) => ({
+      x: clampNumber(layer.x, SHADOW_LIMITS.x) ?? 0,
+      y: clampNumber(layer.y, SHADOW_LIMITS.y) ?? 0,
+      blur: clampNumber(layer.blur, SHADOW_LIMITS.blur) ?? 0,
+      spread: clampNumber(layer.spread, SHADOW_LIMITS.spread) ?? 0,
+      color: isSafeColor(layer.color) ? layer.color : '#0f4c5c',
+      alpha: clampNumber(layer.alpha, SHADOW_LIMITS.alpha) ?? 25,
+      ...(layer.inset === true ? { inset: true } : {}),
+    }))
+  return layers.length ? layers : undefined
 }

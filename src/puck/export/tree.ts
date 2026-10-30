@@ -3,13 +3,17 @@ import type { CSSProperties } from 'react'
 import type { BlockAnimation } from '../animation/animationTypes'
 import { sanitizeAnimation } from '../animation/sanitizeAnimation'
 import type { PuckDocument } from '../blockTypes'
-import type { Artboard, FreeCanvasProps, FreeElement } from '../canvas/canvasTypes'
+import type { FreeCanvasProps, FreeElement } from '../canvas/canvasTypes'
 import { boardStyle, boxStyle } from '../canvas/FreeCanvasView'
 import { sanitizeCanvasProps } from '../canvas/sanitizeCanvas'
+import { viewportOverrides } from '../canvas/viewports'
+import { shapeStyle } from '../canvas/shapes'
 import type { BlockStyle } from '../style/styleTypes'
 import { containerUnit, toStyle } from '../style/toStyle'
-import { safeHref, safeSrc } from '../urls'
+import { safeFieldName, safeHref, safeSrc } from '../urls'
 import type { Decls } from './classes'
+
+export type ResponsiveRule = { maxWidth: number; minWidth?: number; style: Decls }
 
 export type ElementNode = {
   type: 'element'
@@ -19,6 +23,8 @@ export type ElementNode = {
   style: Decls
   children: ExportNode[]
   animation?: BlockAnimation
+  /** Overrides that apply when the viewport is at most `maxWidth` pixels wide. */
+  responsive?: ResponsiveRule[]
 }
 
 /** Custom markup, already sanitized, rendered into its own shadow root so its CSS stays scoped. */
@@ -70,7 +76,8 @@ const text = (value: unknown): ExportNode[] =>
 
 const props = (item: Record<string, unknown>) => (item.props ?? {}) as Record<string, unknown>
 
-function canvasElement(element: FreeElement, artboard: Artboard): ElementNode | null {
+function canvasElement(element: FreeElement, canvas: FreeCanvasProps): ElementNode | null {
+  const artboard = canvas.artboard
   const unit = containerUnit(artboard.width)
   const style = toStyle(element.style, unit)
   const { content } = element
@@ -97,28 +104,67 @@ function canvasElement(element: FreeElement, artboard: Artboard): ElementNode | 
       })
       break
     }
-    case 'shape':
+    case 'input': {
+      const name = safeFieldName(content.name)
+      const attrs: Record<string, string> = {}
+      if (name) attrs.name = name
+      if (content.placeholder) attrs.placeholder = content.placeholder
+      const control =
+        content.inputType === 'textarea'
+          ? el('textarea', ['lc-el-input__control'], text(content.text), {}, attrs)
+          : el('input', ['lc-el-input__control'], [], {}, {
+              ...attrs,
+              type: content.inputType ?? 'text',
+              ...(content.text ? { value: content.text } : {}),
+            })
       body = el(
-        'div',
-        ['lc-el-body'],
-        [],
-        toDecls({ ...style, borderRadius: content.shape === 'ellipse' ? '50%' : style.borderRadius }),
-        { 'aria-hidden': 'true' },
+        'label',
+        ['lc-el-body', 'lc-el-input'],
+        [...(content.label ? [el('span', ['lc-el-input__label'], text(content.label))] : []), control],
+        toDecls(style),
       )
       break
+    }
+    case 'shape': {
+      const label = text(content.text)
+      body = el(
+        'div',
+        ['lc-el-body', 'lc-el-shape'],
+        label,
+        toDecls(shapeStyle(content.shape, style)),
+        label.length ? {} : { 'aria-hidden': 'true' },
+      )
+      break
+    }
   }
 
   // Animations run on the body so their transforms never replace the box's rotation.
   body.animation = element.animation
-  return el('div', ['lc-el'], [body], toDecls(boxStyle(element, artboard)))
+  const node = el('div', ['lc-el'], [body], toDecls(boxStyle(element, artboard)))
+  const responsive = viewportOverrides({ ...canvas, elements: [element] }).flatMap((query) =>
+    query.elements.map((item) => ({ maxWidth: query.maxWidth, minWidth: query.minWidth, style: toDecls(item.style) })),
+  )
+  return withViewportRules(node, responsive)
+}
+
+function withViewportRules(node: ElementNode, rules: ResponsiveRule[]): ElementNode {
+  return rules.length ? { ...node, responsive: rules } : node
 }
 
 function canvasNode(raw: Record<string, unknown>): ElementNode {
   const canvas: FreeCanvasProps = sanitizeCanvasProps(raw)
   const children = canvas.elements
-    .map((element) => canvasElement(element, canvas.artboard))
+    .map((element) => canvasElement(element, canvas))
     .filter((node): node is ElementNode => node !== null)
-  return el('div', ['lc-canvas'], children, toDecls(boardStyle({ ...canvas, frame: raw.style as BlockStyle })))
+  const node = el('div', ['lc-canvas'], children, toDecls(boardStyle({ ...canvas, frame: raw.style as BlockStyle })))
+  return withViewportRules(
+    node,
+    viewportOverrides(canvas).map((query) => ({
+      maxWidth: query.maxWidth,
+      minWidth: query.minWidth,
+      style: toDecls(query.canvas),
+    })),
+  )
 }
 
 function blockNode(item: Record<string, unknown>): ExportNode | null {
@@ -154,6 +200,25 @@ function blockBody(item: Record<string, unknown>): ExportNode | null {
       return el('a', ['lc-button', `lc-button--${variant}`], text(p.label), style, {
         href: safeHref(String(p.href ?? '#')),
       })
+    }
+    case 'Input': {
+      const type = ['email', 'number', 'password', 'textarea'].includes(String(p.type)) ? String(p.type) : 'text'
+      const name = safeFieldName(String(p.name ?? ''))
+      const attrs: Record<string, string> = {}
+      if (name) attrs.name = name
+      if (typeof p.placeholder === 'string' && p.placeholder) attrs.placeholder = p.placeholder
+      const control =
+        type === 'textarea'
+          ? el('textarea', ['lc-field__control'], text(p.value), style, attrs)
+          : el('input', ['lc-field__control'], [], style, {
+              ...attrs,
+              type,
+              ...(typeof p.value === 'string' && p.value ? { value: p.value } : {}),
+            })
+      return el('label', ['lc-field'], [
+        ...(typeof p.label === 'string' && p.label ? [el('span', ['lc-field__label'], text(p.label))] : []),
+        control,
+      ])
     }
     case 'Stack': {
       const direction = p.direction === 'horizontal' ? 'horizontal' : 'vertical'

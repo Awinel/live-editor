@@ -91,7 +91,7 @@ describe('animation export', () => {
 
     expect(html).toMatch(/<h2 class="lc-heading lc-heading--h2 lc-anim lc-anim--load lc-n\d+">/)
     expect(html).toMatch(/class="lc-canvas lc-anim lc-anim--scroll lc-n\d+"/)
-    expect(html).toMatch(/class="lc-el lc-n\d+">\n\s+<div class="lc-el-body lc-anim lc-anim--hover lc-n\d+"/)
+    expect(html).toMatch(/class="lc-el lc-n\d+">\n\s+<div class="lc-el-body lc-el-shape lc-anim lc-anim--hover lc-n\d+"/)
     expect(css).toContain('--lc-anim-name: lc-slide-up;')
     expect(css).toContain('--lc-anim-delay: 200ms;')
     expect(css).toContain('--lc-anim-easing: cubic-bezier(0.34, 1.56, 0.64, 1);')

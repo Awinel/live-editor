@@ -54,7 +54,8 @@ export function exportComposition(raw: unknown, format: ExportFormat, title: str
   const stem = fileStem(title)
 
   if (format === 'tailwind') {
-    const { html, css } = emitTailwind(tree)
+    const { html, css } = emitTailwind(tree, { jsx: true })
+    const preview = emitTailwind(tree).html
     const keyframes: ExportFile[] = css
       ? [{ id: 'css', label: 'Keyframes', filename: `${stem}-animations.css`, mime: 'text/css', content: `${css}\n` }]
       : []
@@ -75,7 +76,7 @@ export function exportComposition(raw: unknown, format: ExportFormat, title: str
           ],
           '<body class="m-0 bg-[#f7fbfc] px-4 py-8">',
           '<main class="mx-auto max-w-[1040px]">',
-          html,
+          preview,
         ),
       },
     ]

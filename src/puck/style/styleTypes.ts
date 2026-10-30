@@ -3,6 +3,17 @@ export type TextAlign = 'left' | 'center' | 'right' | 'justify'
 export type BorderStyle = 'solid' | 'dashed' | 'dotted'
 export type Shadow = 'none' | 'sm' | 'md' | 'lg'
 
+/** One box-shadow layer; color plus alpha (0–100) so the picker can stay a plain hex input. */
+export type ShadowLayer = {
+  x: number
+  y: number
+  blur: number
+  spread: number
+  color: string
+  alpha: number
+  inset?: boolean
+}
+
 export type BlockStyle = {
   widthMode?: WidthMode
   width?: number
@@ -24,10 +35,20 @@ export type BlockStyle = {
   italic?: boolean
   uppercase?: boolean
   borderWidth?: number
+  borderTopWidth?: number
+  borderRightWidth?: number
+  borderBottomWidth?: number
+  borderLeftWidth?: number
   borderStyle?: BorderStyle
   borderColor?: string
   radius?: number
+  radiusTopLeft?: number
+  radiusTopRight?: number
+  radiusBottomRight?: number
+  radiusBottomLeft?: number
   shadow?: Shadow
+  /** Custom layers; when present they replace the shadow preset. */
+  shadows?: ShadowLayer[]
   opacity?: number
 }
 
@@ -50,8 +71,28 @@ export const NUMBER_LIMITS: Record<NumericStyleKey, [min: number, max: number]> 
   lineHeight: [0.8, 3],
   letterSpacing: [-10, 40],
   borderWidth: [0, 40],
+  borderTopWidth: [0, 40],
+  borderRightWidth: [0, 40],
+  borderBottomWidth: [0, 40],
+  borderLeftWidth: [0, 40],
   radius: [0, 999],
+  radiusTopLeft: [0, 999],
+  radiusTopRight: [0, 999],
+  radiusBottomRight: [0, 999],
+  radiusBottomLeft: [0, 999],
   opacity: [0, 100],
+}
+
+export const BORDER_SIDES = ['borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth'] as const
+export const RADIUS_CORNERS = ['radiusTopLeft', 'radiusTopRight', 'radiusBottomRight', 'radiusBottomLeft'] as const
+
+export const SHADOW_LIMITS = {
+  x: [-200, 200] as [number, number],
+  y: [-200, 200] as [number, number],
+  blur: [0, 400] as [number, number],
+  spread: [-200, 200] as [number, number],
+  alpha: [0, 100] as [number, number],
+  layers: 4,
 }
 
 export const COLOR_KEYS = ['background', 'color', 'borderColor'] as const
@@ -74,11 +115,15 @@ export const FONT_WEIGHTS = [
   { label: 'Extra bold', value: 800 },
 ]
 
-export const SHADOWS: Record<Exclude<Shadow, 'none'>, string> = {
-  sm: '0 1px 3px rgba(15, 76, 92, 0.18)',
-  md: '0 8px 20px rgba(15, 76, 92, 0.18)',
-  lg: '0 20px 48px rgba(15, 76, 92, 0.24)',
+const teal = (y: number, blur: number, alpha: number): ShadowLayer => ({ x: 0, y, blur, spread: 0, color: '#0f4c5c', alpha })
+
+export const SHADOW_PRESETS: Record<Exclude<Shadow, 'none'>, ShadowLayer[]> = {
+  sm: [teal(1, 3, 18)],
+  md: [teal(8, 20, 18)],
+  lg: [teal(20, 48, 24)],
 }
+
+export const newShadowLayer = (): ShadowLayer => teal(8, 20, 20)
 
 export const PALETTE = [
   { name: 'Crimson violet', value: '#5f0f40' },
@@ -103,4 +148,23 @@ export function isSafeColor(value: unknown): value is string {
     value.length <= 40 &&
     (value === 'transparent' || HEX.test(value) || RGB.test(value))
   )
+}
+
+/** Combines a safe color with an opacity (0–100) into rgba; any alpha already in the color is multiplied in. */
+export function colorWithAlpha(color: string, alpha: number): string {
+  if (!isSafeColor(color) || color === 'transparent') return 'transparent'
+  let channels: number[]
+  let base = 1
+  if (color.startsWith('#')) {
+    const hex = color.slice(1)
+    const full = hex.length <= 4 ? [...hex].map((digit) => digit + digit).join('') : hex
+    channels = [0, 2, 4].map((start) => parseInt(full.slice(start, start + 2), 16))
+    if (full.length === 8) base = parseInt(full.slice(6, 8), 16) / 255
+  } else {
+    const numbers = color.match(/[\d.]+/g)!.map(Number)
+    channels = numbers.slice(0, 3).map((value) => Math.min(255, value))
+    if (numbers.length > 3) base = numbers[3]
+  }
+  const a = Math.round(base * (Math.min(100, Math.max(0, alpha)) / 100) * 100) / 100
+  return `rgba(${channels.join(', ')}, ${a})`
 }

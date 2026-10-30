@@ -1,6 +1,9 @@
 import { useSyncExternalStore } from 'react'
 
+import type { Viewport } from './viewports'
+
 const selected = new Map<string, string | null>()
+const viewports = new Map<string, Viewport>()
 const listeners = new Set<() => void>()
 
 export function selectElement(blockId: string, elementId: string | null) {
@@ -14,6 +17,20 @@ const subscribe = (listener: () => void) => {
   return () => {
     listeners.delete(listener)
   }
+}
+
+export function setViewport(blockId: string, viewport: Viewport) {
+  if ((viewports.get(blockId) ?? 'large') === viewport) return
+  viewports.set(blockId, viewport)
+  listeners.forEach((listener) => listener())
+}
+
+export function useViewport(blockId: string | undefined): Viewport {
+  return useSyncExternalStore(
+    subscribe,
+    () => (blockId ? (viewports.get(blockId) ?? 'large') : 'large'),
+    () => 'large',
+  )
 }
 
 /** Shared between the canvas (inside Puck's iframe) and the sidebar fields, which live in one React tree. */

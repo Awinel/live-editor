@@ -208,11 +208,94 @@
   font-size: 12px;
 }
 
+.lc-sf__preview {
+  display: grid;
+  place-items: center;
+  height: 88px;
+  border-radius: 4px;
+  background:
+    repeating-conic-gradient(#f1f4f5 0 25%, #fff 0 50%) 0 0 / 16px 16px;
+}
+
+.lc-sf__preview-box {
+  width: 96px;
+  height: 52px;
+  background: #fff;
+  border: 1px dashed rgba(15, 76, 92, 0.35);
+}
+
+.lc-sf__layers {
+  display: grid;
+  gap: 8px;
+}
+
+.lc-sf__layer {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--lc-sf-line);
+  border-radius: 6px;
+}
+
+.lc-sf__layer-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lc-sf__layer-head strong {
+  margin-right: auto;
+  font-size: 12px;
+}
+
 /* Canvas sidebar fields */
 .lc-cf__add {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
   gap: 6px;
+}
+
+.lc-cf__shapes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.lc-cf__shape {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  align-content: center;
+  min-height: 56px;
+  padding: 6px 2px;
+  border: 1px solid var(--lc-sf-line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--lc-sf-text);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+}
+
+.lc-cf__shape:hover {
+  border-color: var(--lc-sf-accent);
+  color: var(--lc-sf-accent);
+}
+
+.lc-cf__shape[aria-pressed='true'] {
+  border-color: var(--lc-sf-accent);
+  background: rgba(251, 139, 36, 0.1);
+  color: var(--lc-sf-accent);
+}
+
+.lc-cf__shape-mark {
+  width: 20px;
+  height: 20px;
+  background: currentColor;
 }
 
 .lc-cf__add .lc-cf__button {

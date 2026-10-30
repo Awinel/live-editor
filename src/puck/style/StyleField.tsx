@@ -6,7 +6,19 @@ import { useState, type ReactNode } from 'react'
 import './fields.css'
 
 import { ColorInput } from './ColorField'
-import { FONT_WEIGHTS, NUMBER_LIMITS, type BlockStyle, type NumericStyleKey } from './styleTypes'
+import { ShadowLayers } from './ShadowEditor'
+import {
+  BORDER_SIDES,
+  FONT_WEIGHTS,
+  NUMBER_LIMITS,
+  RADIUS_CORNERS,
+  SHADOW_PRESETS,
+  newShadowLayer,
+  type BlockStyle,
+  type NumericStyleKey,
+  type Shadow,
+} from './styleTypes'
+import { toStyle } from './toStyle'
 
 export type StyleGroup = 'size' | 'spacing' | 'typography' | 'fill' | 'effects'
 
@@ -14,9 +26,24 @@ const GROUP_KEYS: Record<StyleGroup, Array<keyof BlockStyle>> = {
   size: ['widthMode', 'width', 'maxWidth', 'minHeight'],
   spacing: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'marginTop', 'marginBottom'],
   typography: ['color', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'textAlign', 'italic', 'uppercase'],
-  fill: ['background', 'borderWidth', 'borderStyle', 'borderColor', 'radius'],
-  effects: ['shadow', 'opacity'],
+  fill: ['background', 'borderWidth', ...BORDER_SIDES, 'borderStyle', 'borderColor', 'radius', ...RADIUS_CORNERS],
+  effects: ['shadow', 'shadows', 'opacity'],
 }
+
+const PREVIEW_KEYS = [...GROUP_KEYS.fill, ...GROUP_KEYS.effects]
+
+/** A swatch showing the current fill, border, corners and shadow together. */
+function StylePreview({ style }: { style: BlockStyle }) {
+  const picked = Object.fromEntries(PREVIEW_KEYS.map((key) => [key, style[key]]))
+  return (
+    <div className="lc-sf__preview" aria-hidden="true">
+      <div className="lc-sf__preview-box" style={toStyle(picked)} />
+    </div>
+  )
+}
+
+const BORDER_LABELS = ['Top', 'Right', 'Bottom', 'Left']
+const CORNER_LABELS = ['Top left', 'Top right', 'Bottom right', 'Bottom left']
 
 const GROUP_TITLES: Record<StyleGroup, string> = {
   size: 'Size',
@@ -150,6 +177,30 @@ export function StyleEditor({
   const [linked, setLinked] = useState(() =>
     PADDING_KEYS.every((key) => style[key] === style.paddingTop),
   )
+  const [sameBorder, setSameBorder] = useState(() => BORDER_SIDES.every((key) => style[key] === undefined))
+  const [sameCorners, setSameCorners] = useState(() => RADIUS_CORNERS.every((key) => style[key] === undefined))
+
+  // Switching modes carries the current value across, so nothing visibly changes until the user edits.
+  const linkBorder = (same: boolean) => {
+    setSameBorder(same)
+    const sides = Object.fromEntries(BORDER_SIDES.map((key) => [key, same ? undefined : style[key] ?? style.borderWidth]))
+    commit({ ...style, ...sides, borderWidth: same ? (style.borderTopWidth ?? style.borderWidth) : undefined })
+  }
+  const linkCorners = (same: boolean) => {
+    setSameCorners(same)
+    const corners = Object.fromEntries(RADIUS_CORNERS.map((key) => [key, same ? undefined : style[key] ?? style.radius]))
+    commit({ ...style, ...corners, radius: same ? (style.radiusTopLeft ?? style.radius) : undefined })
+  }
+
+  const shadowMode = style.shadows ? 'custom' : (style.shadow ?? '')
+  const chooseShadow = (mode: string) => {
+    if (mode === 'custom') {
+      const preset = style.shadow && style.shadow !== 'none' ? SHADOW_PRESETS[style.shadow] : [newShadowLayer()]
+      commit({ ...style, shadow: undefined, shadows: structuredClone(preset) })
+    } else {
+      commit({ ...style, shadow: (mode || undefined) as Shadow | undefined, shadows: undefined })
+    }
+  }
 
   const commit = (next: BlockStyle) => {
     const cleaned = Object.fromEntries(
@@ -279,11 +330,22 @@ export function StyleEditor({
     ),
     fill: (
       <>
+        <StylePreview style={style} />
         {shows('background') && (
           <ColorInput label="Background" value={style.background} onChange={(color) => set('background', color)} />
         )}
+        <label className="lc-sf__check">
+          <input type="checkbox" checked={sameBorder} onChange={(event) => linkBorder(event.target.checked)} />
+          Same border on all sides
+        </label>
         <div className="lc-sf__grid">
-          <NumberInput label="Border" name="borderWidth" style={style} set={set} />
+          {sameBorder ? (
+            <NumberInput label="Border" name="borderWidth" style={style} set={set} />
+          ) : (
+            BORDER_SIDES.map((key, index) => (
+              <NumberInput key={key} label={`${BORDER_LABELS[index]} border`} name={key} style={style} set={set} />
+            ))
+          )}
           <Choice
             label="Border style"
             value={style.borderStyle}
@@ -296,24 +358,52 @@ export function StyleEditor({
           />
         </div>
         <ColorInput label="Border color" value={style.borderColor} onChange={(color) => set('borderColor', color)} />
-        <NumberInput label="Corner radius" name="radius" style={style} set={set} />
+        <label className="lc-sf__check">
+          <input type="checkbox" checked={sameCorners} onChange={(event) => linkCorners(event.target.checked)} />
+          Same radius on all corners
+        </label>
+        {sameCorners ? (
+          <NumberInput label="Corner radius" name="radius" style={style} set={set} />
+        ) : (
+          <div className="lc-sf__grid">
+            {RADIUS_CORNERS.map((key, index) => (
+              <NumberInput key={key} label={`${CORNER_LABELS[index]} corner`} name={key} style={style} set={set} />
+            ))}
+          </div>
+        )}
       </>
     ),
     effects: (
-      <div className="lc-sf__grid">
-        <Choice
-          label="Shadow"
-          value={style.shadow}
-          options={[
-            { label: 'None', value: 'none' },
-            { label: 'Soft', value: 'sm' },
-            { label: 'Medium', value: 'md' },
-            { label: 'Deep', value: 'lg' },
-          ]}
-          onChange={(shadow) => set('shadow', shadow)}
-        />
-        <NumberInput label="Opacity" name="opacity" style={style} set={set} unit="%" />
-      </div>
+      <>
+        <StylePreview style={style} />
+        <div className="lc-sf__grid">
+          <label className="lc-sf__number">
+            <span className="lc-sf__label">Shadow</span>
+            <select
+              className="lc-sf__input"
+              aria-label="Shadow"
+              value={shadowMode}
+              onChange={(event) => chooseShadow(event.target.value)}
+            >
+              <option value="">Default</option>
+              <option value="none">None</option>
+              <option value="sm">Soft</option>
+              <option value="md">Medium</option>
+              <option value="lg">Deep</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </label>
+          <NumberInput label="Opacity" name="opacity" style={style} set={set} unit="%" />
+        </div>
+        {style.shadows ? (
+          <ShadowLayers
+            value={style.shadows}
+            onChange={(layers) => commit({ ...style, shadows: layers.length ? layers : undefined })}
+          />
+        ) : (
+          <p className="lc-cf__hint">Choose Custom to set offset, blur, spread, color and inner shadows, with up to four layers.</p>
+        )}
+      </>
     ),
   }
 

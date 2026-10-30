@@ -4,8 +4,10 @@ import { animationProps, withClass } from '../animation/animationCss'
 import type { BlockAnimation } from '../animation/animationTypes'
 import type { BlockStyle } from '../style/styleTypes'
 import { containerUnit, toStyle, type LengthUnit } from '../style/toStyle'
-import { safeHref, safeSrc } from '../urls'
+import { safeFieldName, safeHref, safeSrc } from '../urls'
 import type { Artboard, FreeCanvasProps, FreeElement } from './canvasTypes'
+import { shapeStyle } from './shapes'
+import { responsiveCanvasCss } from './viewports'
 
 const percent = (value: number, total: number) => `${Math.round((value / total) * 1_000_000) / 10_000}%`
 
@@ -21,21 +23,21 @@ export function boxStyle(element: FreeElement, artboard: Artboard): CSSPropertie
 
 export type CanvasFrameProps = FreeCanvasProps & { frame?: BlockStyle; animation?: BlockAnimation }
 
-export function boardStyle(props: CanvasFrameProps): CSSProperties {
-  const { width, height } = props.artboard
+export function boardStyle(props: CanvasFrameProps, frame: Artboard = props.artboard): CSSProperties {
   return {
     ...toStyle(props.frame),
-    aspectRatio: `${width} / ${height}`,
-    maxWidth: `${width}px`,
+    aspectRatio: `${frame.width} / ${frame.height}`,
+    maxWidth: `${frame.width}px`,
     background: props.background,
-    fontSize: containerUnit(width)(16),
+    // Type stays relative to the large artboard, so a narrower frame scales it instead of resetting it.
+    fontSize: containerUnit(props.artboard.width)(16),
   }
 }
 
 /** Class and style for the board itself, including the whole-canvas animation. */
-export function boardProps(props: CanvasFrameProps, baseClass: string) {
+export function boardProps(props: CanvasFrameProps, baseClass: string, frame?: Artboard) {
   const animation = animationProps(props.animation)
-  return { className: withClass(baseClass, animation.className), style: { ...boardStyle(props), ...animation.style } }
+  return { className: withClass(baseClass, animation.className), style: { ...boardStyle(props, frame), ...animation.style } }
 }
 
 type BodyProps = {
@@ -82,6 +84,32 @@ export function ElementBody({ element, unit, isEditing, textSlot }: BodyProps) {
           {text}
         </a>
       )
+    case 'input': {
+      const name = safeFieldName(content.name)
+      const shared = {
+        className: 'lc-el-input__control',
+        name,
+        placeholder: content.placeholder || undefined,
+        readOnly: isEditing || undefined,
+      }
+      const control =
+        textSlot ??
+        (content.inputType === 'textarea' ? (
+          <textarea {...shared} rows={3} {...(isEditing ? { value: content.text ?? '' } : { defaultValue: content.text ?? '' })} />
+        ) : (
+          <input
+            {...shared}
+            type={content.inputType ?? 'text'}
+            {...(isEditing ? { value: content.text ?? '' } : { defaultValue: content.text ?? '' })}
+          />
+        ))
+      return (
+        <label className={body('lc-el-input')} style={style}>
+          {content.label ? <span className="lc-el-input__label">{content.label}</span> : null}
+          {control}
+        </label>
+      )
+    }
     case 'image': {
       const src = safeSrc(content.src ?? '')
       if (!src) {
@@ -106,19 +134,25 @@ export function ElementBody({ element, unit, isEditing, textSlot }: BodyProps) {
       return (
         <div
           className={body('lc-el-shape')}
-          aria-hidden="true"
-          style={{ ...style, borderRadius: content.shape === 'ellipse' ? '50%' : style.borderRadius }}
-        />
+          aria-hidden={text ? undefined : true}
+          style={shapeStyle(content.shape, style)}
+        >
+          {text}
+        </div>
       )
   }
 }
 
-export function FreeCanvasView(props: CanvasFrameProps) {
+export function FreeCanvasView({ canvasId = 'canvas', ...props }: CanvasFrameProps & { canvasId?: string }) {
   const unit = containerUnit(props.artboard.width)
+  const id = canvasId.replace(/[^\w-]/g, '') || 'canvas'
+  const board = boardProps(props, 'lc-canvas')
+  const { aspectRatio: _aspectRatio, maxWidth: _maxWidth, ...chrome } = board.style
   return (
-    <div {...boardProps(props, 'lc-canvas')}>
+    <div data-lc-canvas={id} className={board.className} style={chrome}>
+      <style>{responsiveCanvasCss(id, props)}</style>
       {props.elements.map((element) => (
-        <div key={element.id} className="lc-el" style={boxStyle(element, props.artboard)}>
+        <div key={element.id} className="lc-el" data-lc-el={element.id}>
           <ElementBody element={element} unit={unit} />
         </div>
       ))}
